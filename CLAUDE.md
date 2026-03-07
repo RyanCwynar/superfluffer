@@ -7,10 +7,10 @@ Orient: read ROADMAP.md and vision.md at session start.
 ## Stack
 - **Frontend**: Next.js on Vercel
 - **Backend/DB**: Convex (reactive DB, scheduled functions, HTTP actions for webhooks)
-- **Voice AI**: Retell.ai (built-in LLM, batch calling, mid-call custom functions)
+- **Voice AI**: Retell.ai (built-in LLM, batch calling, built-in Cal.com booking tools)
 - **TTS**: Retell's built-in (ElevenLabs under the hood). Cartesia as fallback/alternative.
 - **SMS**: Retell built-in (requires 10DLC registration, ~2-3 week approval)
-- **Calendar**: Google Calendar API (service account + calendar sharing)
+- **Calendar**: Cal.com (free tier, Retell built-in integration, syncs to Google Calendar)
 - **Voice cloning**: Through Retell's API (ElevenLabs engine underneath)
 
 ## Key Decisions

@@ -24,16 +24,6 @@ export const triggerBatch = internalAction({
       return;
     }
 
-    // Pre-fetch calendar availability once for the entire batch
-    const availableSlots = await ctx.runAction(
-      internal.calendar.getAvailableSlots,
-      { days: 3 },
-    );
-
-    const slotsString = Object.entries(availableSlots)
-      .map(([date, slots]) => `${date}: ${slots.join(", ")}`)
-      .join("\n");
-
     const retell = getRetellClient();
 
     await ctx.runMutation(internal.batches.updateStatusInternal, {
@@ -50,7 +40,6 @@ export const triggerBatch = internalAction({
           retell_llm_dynamic_variables: {
             lead_name: lead.name,
             lead_phone: lead.phone,
-            available_slots: slotsString,
           },
           metadata: {
             leadId: lead._id,
@@ -80,16 +69,6 @@ export const retryCall = internalAction({
       return;
     }
 
-    // Re-fetch fresh availability for retry
-    const availableSlots = await ctx.runAction(
-      internal.calendar.getAvailableSlots,
-      { days: 3 },
-    );
-
-    const slotsString = Object.entries(availableSlots)
-      .map(([date, slots]) => `${date}: ${slots.join(", ")}`)
-      .join("\n");
-
     const retell = getRetellClient();
 
     try {
@@ -100,7 +79,6 @@ export const retryCall = internalAction({
         retell_llm_dynamic_variables: {
           lead_name: lead.name,
           lead_phone: lead.phone,
-          available_slots: slotsString,
         },
         metadata: {
           leadId: lead._id,
