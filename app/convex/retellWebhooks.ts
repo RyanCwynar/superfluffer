@@ -1,8 +1,42 @@
-"use node";
-
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import Retell from "retell-sdk";
+
+async function verifyRetellSignature(
+  body: string,
+  apiKey: string,
+  signature: string,
+): Promise<boolean> {
+  const match = signature.match(/v=(\d+),d=(.*)/);
+  if (!match) return false;
+
+  const timestamp = match[1];
+  const digest = match[2];
+
+  // Reject if older than 5 minutes
+  const now = Date.now();
+  if (Math.abs(now - parseInt(timestamp)) > 5 * 60 * 1000) return false;
+
+  // HMAC-SHA256 of body + timestamp
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(apiKey),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signed = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(body + timestamp),
+  );
+
+  const computed = Array.from(new Uint8Array(signed))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  return computed === digest;
+}
 
 export const retellWebhook = httpAction(async (ctx, request) => {
   const body = await request.text();
@@ -12,12 +46,12 @@ export const retellWebhook = httpAction(async (ctx, request) => {
     return new Response("Missing signature", { status: 401 });
   }
 
-  const isValid = Retell.verify(
-    body,
-    process.env.RETELL_API_KEY!,
-    signature,
-  );
+  const apiKey = process.env.RETELL_API_KEY;
+  if (!apiKey) {
+    return new Response("Server misconfigured", { status: 500 });
+  }
 
+  const isValid = await verifyRetellSignature(body, apiKey, signature);
   if (!isValid) {
     return new Response("Invalid signature", { status: 401 });
   }
@@ -53,7 +87,6 @@ export const retellWebhook = httpAction(async (ctx, request) => {
       const sentiment = call.call_analysis?.user_sentiment;
 
       if (summary) {
-        // Only update notes, don't override status if already booked
         const lead = await ctx.runQuery(internal.leads.getInternal, { leadId });
         if (lead && lead.status !== "booked") {
           const status =
