@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
+import { UserButton } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
 import { useState, useCallback } from "react";
 import CsvUpload from "./components/CsvUpload";
@@ -54,14 +55,17 @@ export default function Home() {
             AI voice caller that books appointments
           </p>
         </div>
-        <ClientSelector
-          clients={clients ?? []}
-          selectedClientId={selectedClientId}
-          onSelect={(id) => {
-            setSelectedClientId(id);
-            setSelectedBatchId(null);
-          }}
-        />
+        <div className="flex items-center gap-4">
+          <ClientSelector
+            clients={clients ?? []}
+            selectedClientId={selectedClientId}
+            onSelect={(id) => {
+              setSelectedClientId(id);
+              setSelectedBatchId(null);
+            }}
+          />
+          <UserButton />
+        </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
