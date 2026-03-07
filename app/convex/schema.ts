@@ -2,6 +2,17 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  clients: defineTable({
+    name: v.string(),
+    slug: v.string(),
+    industry: v.string(),
+    timezone: v.string(),
+    retellAgentId: v.string(),
+    retellPhoneNumber: v.string(),
+    calComEventSlug: v.optional(v.string()),
+    active: v.boolean(),
+  }).index("by_slug", ["slug"]),
+
   leads: defineTable({
     name: v.string(),
     phone: v.string(),
@@ -24,10 +35,12 @@ export default defineSchema({
     calendarEventId: v.optional(v.string()),
     notes: v.optional(v.string()),
     batchId: v.id("batches"),
+    clientId: v.id("clients"),
   })
     .index("by_status", ["status"])
     .index("by_phone", ["phone"])
-    .index("by_batch", ["batchId"]),
+    .index("by_batch", ["batchId"])
+    .index("by_client", ["clientId"]),
 
   batches: defineTable({
     fileName: v.string(),
@@ -38,5 +51,6 @@ export default defineSchema({
       v.literal("calling"),
       v.literal("completed"),
     ),
-  }),
+    clientId: v.id("clients"),
+  }).index("by_client", ["clientId"]),
 });

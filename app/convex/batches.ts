@@ -3,13 +3,19 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 export const list = query({
-  handler: async (ctx) => {
-    return ctx.db.query("batches").order("desc").collect();
+  args: { clientId: v.id("clients") },
+  handler: async (ctx, args) => {
+    return ctx.db
+      .query("batches")
+      .withIndex("by_client", (q) => q.eq("clientId", args.clientId))
+      .order("desc")
+      .collect();
   },
 });
 
 export const create = mutation({
   args: {
+    clientId: v.id("clients"),
     fileName: v.string(),
     leads: v.array(
       v.object({
@@ -25,6 +31,7 @@ export const create = mutation({
       uploadedAt: Date.now(),
       totalLeads: args.leads.length,
       status: "processing",
+      clientId: args.clientId,
     });
 
     for (const lead of args.leads) {
@@ -35,10 +42,10 @@ export const create = mutation({
         status: "pending",
         callAttempts: 0,
         batchId,
+        clientId: args.clientId,
       });
     }
 
-    // Kick off the batch calling
     await ctx.scheduler.runAfter(0, internal.calls.triggerBatch, { batchId });
 
     return batchId;

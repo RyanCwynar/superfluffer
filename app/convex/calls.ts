@@ -24,6 +24,16 @@ export const triggerBatch = internalAction({
       return;
     }
 
+    // Get the client config for this batch's client
+    const firstLead = leads[0];
+    const client = await ctx.runQuery(internal.clients.getInternal, {
+      clientId: firstLead.clientId,
+    });
+    if (!client) {
+      console.error(`Client not found for batch ${args.batchId}`);
+      return;
+    }
+
     const retell = getRetellClient();
 
     await ctx.runMutation(internal.batches.updateStatusInternal, {
@@ -34,9 +44,9 @@ export const triggerBatch = internalAction({
     for (const lead of leads) {
       try {
         const call = await retell.call.createPhoneCall({
-          from_number: process.env.RETELL_PHONE_NUMBER!,
+          from_number: client.retellPhoneNumber,
           to_number: lead.phone,
-          override_agent_id: process.env.RETELL_AGENT_ID,
+          override_agent_id: client.retellAgentId,
           retell_llm_dynamic_variables: {
             lead_name: lead.name,
             lead_phone: lead.phone,
@@ -44,6 +54,7 @@ export const triggerBatch = internalAction({
           metadata: {
             leadId: lead._id,
             batchId: args.batchId,
+            clientId: client._id,
           },
         });
 
@@ -69,19 +80,25 @@ export const retryCall = internalAction({
       return;
     }
 
+    const client = await ctx.runQuery(internal.clients.getInternal, {
+      clientId: lead.clientId,
+    });
+    if (!client) return;
+
     const retell = getRetellClient();
 
     try {
       const call = await retell.call.createPhoneCall({
-        from_number: process.env.RETELL_PHONE_NUMBER!,
+        from_number: client.retellPhoneNumber,
         to_number: lead.phone,
-        override_agent_id: process.env.RETELL_AGENT_ID,
+        override_agent_id: client.retellAgentId,
         retell_llm_dynamic_variables: {
           lead_name: lead.name,
           lead_phone: lead.phone,
         },
         metadata: {
           leadId: lead._id,
+          clientId: client._id,
         },
       });
 

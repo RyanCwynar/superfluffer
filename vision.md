@@ -1,4 +1,4 @@
-# AutoBook Vision
+# SuperFluffer Vision
 
 AI voice caller that turns cold leads into booked appointments in under 90 seconds.
 
@@ -6,16 +6,17 @@ AI voice caller that turns cold leads into booked appointments in under 90 secon
 
 1. **Conversion above all** -- voice quality, low latency, and natural conversation are the product. If the AI sounds robotic, nothing else matters.
 2. **Simple stack** -- CSV in, booked appointments out. No bloated CRM, no unnecessary middleware. The system does one thing and does it well.
-3. **Productizable** -- built for one friend first, but every decision should support deploying this for a second client with minimal rework.
+3. **Multi-tenant from day one** -- each client gets their own voice, script, calendar, and phone number. Adding a new client is config, not code.
 4. **Speed to lead** -- the value prop is calling leads fast. The system should be able to start dialing within seconds of receiving leads.
 
 ## What This Is
 
-A lightweight orchestration layer that:
-- Ingests leads (CSV upload for MVP, webhooks later)
-- Triggers AI voice calls via a best-in-class voice platform
-- Runs a qualifying real estate conversation using a cloned voice
-- Books qualified leads onto a calendar
+A multi-tenant platform that:
+- Manages multiple clients, each with their own AI voice agent
+- Ingests leads (CSV upload for now, webhooks later)
+- Triggers AI voice calls via Retell.ai with cloned client voices
+- Runs qualifying conversations tailored to each client's industry
+- Books qualified leads onto the client's calendar via Cal.com
 - Sends SMS reminders to reduce no-shows
 - Retries unreachable leads 2-3 times before giving up
 
@@ -28,7 +29,8 @@ A lightweight orchestration layer that:
 ## Long-term Direction
 
 - Webhook ingestion from Meta Lead Ads, landing pages, etc.
-- Dashboard for monitoring call outcomes, booking rates, conversion metrics
-- Multi-tenant support for deploying across clients
+- Client-facing dashboard with conversion metrics and call analytics
+- Self-serve client onboarding (voice cloning, script builder, calendar setup)
 - Warm transfer to human agents when leads request it
-- Multi-industry support (home services, agencies, coaching) via configurable scripts
+- Multi-industry support (real estate, home services, agencies, coaching)
+- Product page at superfluffer.com

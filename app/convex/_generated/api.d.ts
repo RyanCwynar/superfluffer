@@ -10,6 +10,7 @@
 
 import type * as batches from "../batches.js";
 import type * as calls from "../calls.js";
+import type * as clients from "../clients.js";
 import type * as http from "../http.js";
 import type * as leads from "../leads.js";
 import type * as retellWebhooks from "../retellWebhooks.js";
@@ -23,6 +24,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   batches: typeof batches;
   calls: typeof calls;
+  clients: typeof clients;
   http: typeof http;
   leads: typeof leads;
   retellWebhooks: typeof retellWebhooks;
