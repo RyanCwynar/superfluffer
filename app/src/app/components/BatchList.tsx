@@ -1,6 +1,6 @@
 "use client";
 
-import { Doc, Id } from "../../../convex/_generated/dataModel";
+import type { Batch } from "@/lib/types";
 
 const BATCH_STATUS: Record<string, { label: string; color: string }> = {
   processing: { label: "Processing", color: "text-yellow-400" },
@@ -13,9 +13,9 @@ export default function BatchList({
   selectedBatchId,
   onSelect,
 }: {
-  batches: Doc<"batches">[];
-  selectedBatchId: Id<"batches"> | null;
-  onSelect: (id: Id<"batches"> | null) => void;
+  batches: Batch[];
+  selectedBatchId: number | null;
+  onSelect: (id: number | null) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -39,10 +39,10 @@ export default function BatchList({
         };
         return (
           <button
-            key={batch._id}
-            onClick={() => onSelect(batch._id)}
+            key={batch.id}
+            onClick={() => onSelect(batch.id)}
             className={`w-full rounded px-3 py-2 text-left transition-colors ${
-              selectedBatchId === batch._id
+              selectedBatchId === batch.id
                 ? "bg-zinc-800 text-zinc-100"
                 : "text-zinc-400 hover:bg-zinc-900"
             }`}

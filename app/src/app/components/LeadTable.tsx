@@ -1,6 +1,6 @@
 "use client";
 
-import { Doc } from "../../../convex/_generated/dataModel";
+import type { Lead } from "@/lib/types";
 
 const STATUS_STYLES: Record<string, { label: string; color: string }> = {
   pending: { label: "Pending", color: "text-zinc-500" },
@@ -22,7 +22,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export default function LeadTable({ leads }: { leads: Doc<"leads">[] }) {
+export default function LeadTable({ leads }: { leads: Lead[] }) {
   if (leads.length === 0) {
     return (
       <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-8 text-center text-zinc-500">
@@ -67,7 +67,7 @@ export default function LeadTable({ leads }: { leads: Doc<"leads">[] }) {
           <tbody>
             {leads.map((lead) => (
               <tr
-                key={lead._id}
+                key={lead.id}
                 className="border-t border-zinc-800 hover:bg-zinc-900/50"
               >
                 <td className="px-4 py-2 text-zinc-200">{lead.name}</td>

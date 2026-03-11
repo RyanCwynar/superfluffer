@@ -6,12 +6,16 @@ Orient: read ROADMAP.md and vision.md at session start.
 
 ## Stack
 - **Frontend**: Next.js on Vercel
-- **Backend/DB**: Convex (reactive DB, scheduled functions, HTTP actions for webhooks)
+- **Database**: Neon Postgres (serverless)
+- **ORM**: Drizzle
+- **API**: Next.js Route Handlers
+- **Auth**: Clerk
 - **Voice AI**: Retell.ai (built-in LLM, per-client agents + phone numbers)
 - **TTS**: Retell's built-in (ElevenLabs under the hood). Cartesia as fallback/alternative.
 - **SMS**: Retell built-in (requires 10DLC registration, ~2-3 week approval)
 - **Calendar**: Cal.com (free tier, Retell built-in integration, syncs to Google Calendar)
 - **Voice cloning**: Through Retell's API (ElevenLabs engine underneath)
+- **Data fetching**: SWR (polling with 5s refresh for live call status updates)
 
 ## Multi-tenant Architecture
 - `clients` table holds per-client config: Retell agent ID, phone number, Cal.com link, timezone
@@ -31,7 +35,15 @@ Orient: read ROADMAP.md and vision.md at session start.
 - Retell over Vapi: better outbound sales features, reliability, user satisfaction
 - Real cost: ~$0.12-0.19/min depending on TTS + LLM choice
 
-## Convex Deployment
-- Name: resilient-deer-427
-- Dashboard: https://dashboard.convex.dev/d/resilient-deer-427
-- Webhook URL: https://resilient-deer-427.convex.site/retell/webhook
+## API Routes
+- `GET /api/clients` — list active clients
+- `GET /api/batches?clientId=X` — list batches for a client
+- `POST /api/batches` — create batch + leads, triggers calls via `after()`
+- `GET /api/leads?clientId=X&batchId=Y` — list leads
+- `POST /api/retell/webhook` — Retell webhook (HMAC verified)
+- `GET /api/cron/retries` — retry no_answer leads (protected by CRON_SECRET)
+
+## Database
+- Schema: `clients`, `batches`, `leads` tables in Neon Postgres
+- Manage with `npx drizzle-kit push` (dev) or `npx drizzle-kit migrate` (prod)
+- Retry scheduling: `nextRetryAt` stored on leads, cron endpoint picks them up

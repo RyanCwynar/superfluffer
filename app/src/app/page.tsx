@@ -1,49 +1,54 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import useSWR from "swr";
 import { UserButton } from "@clerk/nextjs";
-import { api } from "../../convex/_generated/api";
 import { useState, useCallback } from "react";
 import CsvUpload from "./components/CsvUpload";
 import LeadTable from "./components/LeadTable";
 import BatchList from "./components/BatchList";
 import ClientSelector from "./components/ClientSelector";
-import { Id } from "../../convex/_generated/dataModel";
+import type { Client, Batch, Lead } from "@/lib/types";
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function Home() {
-  const [selectedClientId, setSelectedClientId] =
-    useState<Id<"clients"> | null>(null);
-  const [selectedBatchId, setSelectedBatchId] = useState<Id<"batches"> | null>(
-    null,
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+
+  const { data: clients } = useSWR<Client[]>("/api/clients", fetcher);
+
+  const { data: batches, mutate: mutateBatches } = useSWR<Batch[]>(
+    selectedClientId ? `/api/batches?clientId=${selectedClientId}` : null,
+    fetcher,
   );
 
-  const clients = useQuery(api.clients.list);
-  const batches = useQuery(
-    api.batches.list,
-    selectedClientId ? { clientId: selectedClientId } : "skip",
-  );
-  const leads = useQuery(
-    api.leads.list,
-    selectedClientId
-      ? { clientId: selectedClientId, batchId: selectedBatchId ?? undefined }
-      : "skip",
-  );
-  const createBatch = useMutation(api.batches.create);
+  const leadsUrl = selectedClientId
+    ? `/api/leads?clientId=${selectedClientId}${selectedBatchId ? `&batchId=${selectedBatchId}` : ""}`
+    : null;
+  const { data: leads } = useSWR<Lead[]>(leadsUrl, fetcher, {
+    refreshInterval: 5000,
+  });
 
   const handleUpload = useCallback(
     async (
       fileName: string,
-      leads: { name: string; phone: string; email?: string }[],
+      uploadedLeads: { name: string; phone: string; email?: string }[],
     ) => {
       if (!selectedClientId) return;
-      const batchId = await createBatch({
-        clientId: selectedClientId,
-        fileName,
-        leads,
+      const res = await fetch("/api/batches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClientId,
+          fileName,
+          leads: uploadedLeads,
+        }),
       });
-      setSelectedBatchId(batchId);
+      const batch = await res.json();
+      setSelectedBatchId(batch.id);
+      mutateBatches();
     },
-    [createBatch, selectedClientId],
+    [selectedClientId, mutateBatches],
   );
 
   return (
