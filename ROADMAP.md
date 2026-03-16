@@ -1,11 +1,11 @@
 # SuperFluffer Roadmap
 
 ## now
-- **Connect services** -- set up Clerk app, Neon database, Retell account, Cal.com. Seed Greg as first client. Test end-to-end.
+- **VPS deployment** -- deploy to byldr with Docker + Traefik, point superfluffer.com
+- **Greg end-to-end test** -- Retell agent + Cal.com + real call to own number
 
 ## up next
 - **Call flow & script** -- real estate qualifying conversation for Greg (blocked by: qualifying questions)
-- **End-to-end test** -- Retell agent + Cal.com + real call to own number
 - **SMS reminders** -- appointment confirmation + reminder texts via Retell built-in SMS
 - **Voice cloning** -- clone Greg's voice through Retell's API, test quality
 - **Product page** -- superfluffer.com landing page
@@ -24,3 +24,4 @@
 - Auth -- Clerk integration (login, sign-up, middleware protecting all routes, UserButton in header, dark theme)
 - Stack migration -- replaced Convex with Neon Postgres + Drizzle ORM + Next.js API routes + SWR
 - Renamed project from AutoBook to SuperFluffer (superfluffer.com)
+- Infrastructure migration -- swapped Neon serverless driver for postgres.js, targeting self-hosted Postgres on byldr VPS

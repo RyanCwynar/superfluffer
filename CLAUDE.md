@@ -1,12 +1,12 @@
 # SuperFluffer
 
-Multi-tenant AI voice caller that books appointments. superfluffer.com
+Multi-tenant AI voice caller that books appointments. superfluffer.byldr.co
 
 Orient: read ROADMAP.md and vision.md at session start.
 
 ## Stack
-- **Frontend**: Next.js on Vercel
-- **Database**: Neon Postgres (serverless)
+- **Frontend**: Next.js
+- **Database**: Postgres (self-hosted on byldr VPS)
 - **ORM**: Drizzle
 - **API**: Next.js Route Handlers
 - **Auth**: Clerk
@@ -16,6 +16,7 @@ Orient: read ROADMAP.md and vision.md at session start.
 - **Calendar**: Cal.com (free tier, Retell built-in integration, syncs to Google Calendar)
 - **Voice cloning**: Through Retell's API (ElevenLabs engine underneath)
 - **Data fetching**: SWR (polling with 5s refresh for live call status updates)
+- **Deployment**: pm2 on byldr VPS, Traefik reverse proxy
 
 ## Multi-tenant Architecture
 - `clients` table holds per-client config: Retell agent ID, phone number, Cal.com link, timezone
@@ -44,6 +45,6 @@ Orient: read ROADMAP.md and vision.md at session start.
 - `GET /api/cron/retries` — retry no_answer leads (protected by CRON_SECRET)
 
 ## Database
-- Schema: `clients`, `batches`, `leads` tables in Neon Postgres
+- Schema: `clients`, `batches`, `leads` tables in Postgres
 - Manage with `npx drizzle-kit push` (dev) or `npx drizzle-kit migrate` (prod)
 - Retry scheduling: `nextRetryAt` stored on leads, cron endpoint picks them up

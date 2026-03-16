@@ -1,0 +1,15 @@
+http:
+  routers:
+    superfluffer:
+      rule: "Host(`superfluffer.byldr.co`)"
+      entrypoints:
+        - websecure
+      tls:
+        certResolver: mytlschallenge
+      service: superfluffer
+
+  services:
+    superfluffer:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:3000"
