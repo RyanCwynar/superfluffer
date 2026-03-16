@@ -2,11 +2,12 @@ http:
   routers:
     superfluffer:
       rule: "Host(`superfluffer.byldr.co`)"
-      entrypoints:
+      service: superfluffer
+      entryPoints:
+        - web
         - websecure
       tls:
         certResolver: mytlschallenge
-      service: superfluffer
 
   services:
     superfluffer:
