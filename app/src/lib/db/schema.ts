@@ -5,6 +5,7 @@ import {
   boolean,
   integer,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const apiKeys = pgTable("api_keys", {
@@ -66,7 +67,9 @@ export const leads = pgTable("leads", {
     .notNull()
     .references(() => clients.id),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("leads_phone_client_idx").on(table.phone, table.clientId),
+]);
 
 export const calls = pgTable("calls", {
   id: serial("id").primaryKey(),

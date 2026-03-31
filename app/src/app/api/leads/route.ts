@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { leads } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { normalizePhone } from "@/lib/phone";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -41,15 +42,31 @@ export async function POST(request: Request) {
     );
   }
 
+  const normalized = normalizePhone(phone);
+  if (!normalized) {
+    return NextResponse.json(
+      { error: "Invalid phone number" },
+      { status: 400 },
+    );
+  }
+
+  // Upsert: update name/email if phone already exists for this client
   const [lead] = await db
     .insert(leads)
     .values({
       name,
-      phone,
+      phone: normalized,
       email: email || null,
       status: "new",
       callAttempts: 0,
       clientId,
+    })
+    .onConflictDoUpdate({
+      target: [leads.phone, leads.clientId],
+      set: {
+        name,
+        email: email || null,
+      },
     })
     .returning();
 

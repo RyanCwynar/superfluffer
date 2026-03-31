@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { normalizePhone, formatPhone } from "@/lib/phone";
 
 interface Lead {
   name: string;
@@ -8,43 +9,50 @@ interface Lead {
   email?: string;
 }
 
-function normalizePhone(raw: string): string | null {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
-  return null;
-}
-
-function parseCsv(text: string): Lead[] {
+function parseCsv(text: string): { leads: Lead[]; skipped: number } {
   const lines = text.trim().split("\n");
-  if (lines.length < 2) return [];
+  if (lines.length < 2) return { leads: [], skipped: 0 };
 
   const headers = lines[0].toLowerCase().split(",").map((h) => h.trim());
   const nameIdx = headers.findIndex((h) =>
-    h === "name" || h === "full name" || h === "fullname",
+    ["name", "full name", "fullname", "first name", "firstname"].includes(h),
   );
   const phoneIdx = headers.findIndex((h) =>
-    h === "phone" || h === "phone number" || h === "phonenumber" || h === "mobile",
+    ["phone", "phone number", "phonenumber", "mobile", "cell", "telephone"].includes(h),
   );
   const emailIdx = headers.findIndex((h) =>
-    h === "email" || h === "email address",
+    ["email", "email address", "e-mail"].includes(h),
   );
 
-  if (nameIdx === -1 || phoneIdx === -1) return [];
+  if (nameIdx === -1 || phoneIdx === -1) return { leads: [], skipped: 0 };
 
   const leads: Lead[] = [];
+  let skipped = 0;
+  const seenPhones = new Set<string>();
+
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(",").map((c) => c.trim());
     const name = cols[nameIdx];
-    const phone = normalizePhone(cols[phoneIdx] || "");
+    const rawPhone = cols[phoneIdx] || "";
+    const phone = normalizePhone(rawPhone);
     const email = emailIdx >= 0 ? cols[emailIdx] : undefined;
 
-    if (name && phone) {
-      leads.push({ name, phone, email: email || undefined });
+    if (!name || !phone) {
+      skipped++;
+      continue;
     }
+
+    // Dedupe within same CSV
+    if (seenPhones.has(phone)) {
+      skipped++;
+      continue;
+    }
+    seenPhones.add(phone);
+
+    leads.push({ name, phone, email: email || undefined });
   }
 
-  return leads;
+  return { leads, skipped };
 }
 
 export default function CsvUpload({
@@ -54,6 +62,7 @@ export default function CsvUpload({
 }) {
   const [dragOver, setDragOver] = useState(false);
   const [preview, setPreview] = useState<Lead[] | null>(null);
+  const [skipped, setSkipped] = useState(0);
   const [fileName, setFileName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -65,7 +74,8 @@ export default function CsvUpload({
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const leads = parseCsv(text);
+      const { leads, skipped: skip } = parseCsv(text);
+      setSkipped(skip);
       if (leads.length === 0) {
         setError(
           "No valid leads found. CSV needs 'name' and 'phone' columns.",
@@ -85,6 +95,7 @@ export default function CsvUpload({
       await onUpload(fileName, preview);
       setPreview(null);
       setFileName("");
+      setSkipped(0);
     } finally {
       setUploading(false);
     }
@@ -124,9 +135,12 @@ export default function CsvUpload({
         <p className="text-zinc-400">
           Drop a CSV here or click to upload
         </p>
-        <p className="mt-1 text-xs text-zinc-600">
-          Needs columns: name, phone (email optional)
-        </p>
+        <div className="mt-2 text-xs text-zinc-600 space-y-0.5">
+          <p>Required columns: <span className="text-zinc-500">name</span>, <span className="text-zinc-500">phone</span></p>
+          <p>Optional: <span className="text-zinc-500">email</span></p>
+          <p>Phone formats: <span className="font-mono text-zinc-500">(512) 555-1234</span>, <span className="font-mono text-zinc-500">512-555-1234</span>, <span className="font-mono text-zinc-500">5125551234</span></p>
+          <p>Duplicate phone numbers are updated (upsert)</p>
+        </div>
       </div>
 
       {error && (
@@ -140,6 +154,11 @@ export default function CsvUpload({
               <p className="text-sm font-medium">{fileName}</p>
               <p className="text-xs text-zinc-500">
                 {preview.length} valid lead{preview.length !== 1 ? "s" : ""}
+                {skipped > 0 && (
+                  <span className="text-orange-400 ml-2">
+                    ({skipped} skipped — invalid phone or duplicate)
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex gap-2">
@@ -147,6 +166,7 @@ export default function CsvUpload({
                 onClick={() => {
                   setPreview(null);
                   setFileName("");
+                  setSkipped(0);
                 }}
                 className="rounded px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200"
               >
@@ -157,7 +177,7 @@ export default function CsvUpload({
                 disabled={uploading}
                 className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium hover:bg-blue-500 disabled:opacity-50"
               >
-                {uploading ? "Starting calls..." : "Upload & Start Calling"}
+                {uploading ? "Uploading..." : "Upload & Start Calling"}
               </button>
             </div>
           </div>
@@ -175,9 +195,9 @@ export default function CsvUpload({
                 {preview.slice(0, 10).map((lead, i) => (
                   <tr key={i} className="border-t border-zinc-800">
                     <td className="py-1.5">{lead.name}</td>
-                    <td className="py-1.5 font-mono text-xs">{lead.phone}</td>
+                    <td className="py-1.5 font-mono text-xs">{formatPhone(lead.phone)}</td>
                     <td className="py-1.5 text-zinc-500">
-                      {lead.email || "-"}
+                      {lead.email || "—"}
                     </td>
                   </tr>
                 ))}

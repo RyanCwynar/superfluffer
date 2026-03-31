@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { batches, leads, clients, calls } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getRetellClient } from "@/lib/retell";
+import { normalizePhone } from "@/lib/phone";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -41,10 +42,17 @@ export async function POST(request: Request) {
     })
     .returning();
 
-  const insertedLeads = await db
-    .insert(leads)
-    .values(
-      leadData.map((l) => ({
+  // Normalize phones and filter invalid
+  const validLeads = leadData
+    .map((l) => ({ ...l, phone: normalizePhone(l.phone) }))
+    .filter((l): l is typeof l & { phone: string } => l.phone !== null);
+
+  // Upsert each lead (update name/email/batch if phone already exists)
+  const insertedLeads: (typeof leads.$inferSelect)[] = [];
+  for (const l of validLeads) {
+    const [lead] = await db
+      .insert(leads)
+      .values({
         name: l.name,
         phone: l.phone,
         email: l.email || null,
@@ -52,9 +60,18 @@ export async function POST(request: Request) {
         callAttempts: 0,
         batchId: batch.id,
         clientId,
-      })),
-    )
-    .returning();
+      })
+      .onConflictDoUpdate({
+        target: [leads.phone, leads.clientId],
+        set: {
+          name: l.name,
+          email: l.email || null,
+          batchId: batch.id,
+        },
+      })
+      .returning();
+    insertedLeads.push(lead);
+  }
 
   after(async () => {
     const [client] = await db
