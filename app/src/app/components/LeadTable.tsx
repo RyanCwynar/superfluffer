@@ -58,6 +58,72 @@ function CallRow({ call }: { call: Call }) {
   );
 }
 
+function CallButton({ leadId, size = "sm" }: { leadId: number; size?: "sm" | "md" }) {
+  const [calling, setCalling] = useState(false);
+  const [result, setResult] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  async function handleCall(e: React.MouseEvent) {
+    e.stopPropagation();
+    setCalling(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/calls/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setResult({ type: "success", msg: `Call initiated (#${data.attempt})` });
+      } else {
+        setResult({ type: "error", msg: data.error });
+      }
+    } catch {
+      setResult({ type: "error", msg: "Failed to trigger call" });
+    } finally {
+      setCalling(false);
+    }
+  }
+
+  if (size === "sm") {
+    return (
+      <button
+        onClick={handleCall}
+        disabled={calling}
+        title={result?.msg}
+        className={`rounded px-2 py-0.5 text-xs font-medium ${
+          calling ? "bg-zinc-700 text-zinc-400 animate-pulse" :
+          result?.type === "success" ? "bg-green-800 text-green-300" :
+          result?.type === "error" ? "bg-red-800 text-red-300" :
+          "bg-green-700 text-white hover:bg-green-600"
+        }`}
+      >
+        {calling ? "..." : result?.type === "success" ? "Calling" : "Call"}
+      </button>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        onClick={handleCall}
+        disabled={calling}
+        className={`rounded px-4 py-2 text-sm font-medium ${
+          calling ? "bg-zinc-700 text-zinc-400 animate-pulse" :
+          "bg-green-600 text-white hover:bg-green-500"
+        }`}
+      >
+        {calling ? "Initiating Call..." : "Call Now"}
+      </button>
+      {result && (
+        <span className={`ml-3 text-xs ${result.type === "success" ? "text-green-400" : "text-red-400"}`}>
+          {result.msg}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function LeadDetail({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const { data: leadCalls } = useSWR<Call[]>(
     `/api/calls?leadId=${lead.id}`,
@@ -75,7 +141,10 @@ function LeadDetail({ lead, onClose }: { lead: Lead; onClose: () => void }) {
             <h2 className="text-lg font-semibold text-zinc-100">{lead.name}</h2>
             <p className="text-sm text-zinc-500 font-mono">{lead.phone}</p>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 text-xl">×</button>
+          <div className="flex items-center gap-3">
+            <CallButton leadId={lead.id} size="md" />
+            <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 text-xl">×</button>
+          </div>
         </div>
 
         <div className="px-5 py-4 space-y-4">
@@ -148,7 +217,10 @@ function LeadCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
     >
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-medium text-zinc-200 truncate">{lead.name}</span>
-        <span className="text-xs text-zinc-500">{lead.callAttempts}/5</span>
+        <div className="flex items-center gap-2">
+          <CallButton leadId={lead.id} size="sm" />
+          <span className="text-xs text-zinc-500">{lead.callAttempts}/5</span>
+        </div>
       </div>
       <p className="text-xs font-mono text-zinc-500">{lead.phone}</p>
       {lead.appointmentTime && (
