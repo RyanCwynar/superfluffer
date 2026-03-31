@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { leads, calls } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { verifyRetellSignature, getRetellClient } from "@/lib/retell";
+import { getSetting } from "@/lib/settings";
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing signature" }, { status: 401 });
   }
 
-  const apiKey = process.env.RETELL_API_KEY;
+  const apiKey = await getSetting("RETELL_API_KEY");
   if (!apiKey) {
     return NextResponse.json(
       { error: "Server misconfigured" },
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
       let transcript: string | null = null;
       if (retellCallId) {
         try {
-          const retell = getRetellClient();
+          const retell = await getRetellClient();
           const callDetail = await retell.call.retrieve(retellCallId);
           if (callDetail.transcript) {
             transcript = callDetail.transcript;

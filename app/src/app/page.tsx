@@ -8,6 +8,7 @@ import LeadBoard from "./components/LeadTable";
 import BatchList from "./components/BatchList";
 import ClientSelector from "./components/ClientSelector";
 import ManualLeadForm from "./components/ManualLeadForm";
+import Link from "next/link";
 import type { Client, Batch, Lead } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -126,6 +127,12 @@ export default function Home() {
               setSelectedBatchId(null);
             }}
           />
+          <Link
+            href="/settings"
+            className="rounded px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600"
+          >
+            Settings
+          </Link>
           <button
             onClick={async () => {
               await fetch("/api/auth/logout", { method: "POST" });

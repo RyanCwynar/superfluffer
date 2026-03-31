@@ -1,7 +1,9 @@
 import Retell from "retell-sdk";
+import { getRequiredSetting } from "@/lib/settings";
 
-export function getRetellClient() {
-  return new Retell({ apiKey: process.env.RETELL_API_KEY! });
+export async function getRetellClient() {
+  const apiKey = await getRequiredSetting("RETELL_API_KEY");
+  return new Retell({ apiKey });
 }
 
 export async function verifyRetellSignature(

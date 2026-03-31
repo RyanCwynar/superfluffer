@@ -3,10 +3,12 @@ import { db } from "@/lib/db";
 import { leads, clients, calls } from "@/lib/db/schema";
 import { eq, lte, and } from "drizzle-orm";
 import { getRetellClient } from "@/lib/retell";
+import { getSetting } from "@/lib/settings";
 
 export async function GET(request: Request) {
+  const cronSecret = await getSetting("CRON_SECRET");
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,7 +23,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ retried: 0 });
   }
 
-  const retell = getRetellClient();
+  const retell = await getRetellClient();
   let retried = 0;
 
   for (const lead of retryLeads) {

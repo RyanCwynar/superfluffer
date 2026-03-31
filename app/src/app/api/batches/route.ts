@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       .where(eq(clients.id, clientId));
     if (!client) return;
 
-    const retell = getRetellClient();
+    const retell = await getRetellClient();
 
     await db
       .update(batches)
