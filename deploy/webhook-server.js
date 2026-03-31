@@ -66,7 +66,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (req.method !== "POST" || req.url !== "/deploy") {
+  if (req.method !== "POST" || (req.url !== "/deploy" && req.url !== "/")) {
     res.writeHead(404);
     res.end("Not found");
     return;

@@ -10,14 +10,13 @@ http:
         certResolver: mytlschallenge
 
     superfluffer-deploy:
-      rule: "Host(`superfluffer.byldr.co`) && Path(`/deploy`)"
+      rule: "Host(`githook.byldr.co`)"
       service: deploy-hook
       entryPoints:
         - web
         - websecure
       tls:
         certResolver: mytlschallenge
-      priority: 100
 
   services:
     superfluffer:
