@@ -3,7 +3,7 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$REPO_DIR/app"
-HEALTH_URL="${HEALTH_URL:-http://localhost:3000/api/clients}"
+HEALTH_URL="${HEALTH_URL:-http://localhost:3000/api/health}"
 MAX_RETRIES=10
 RETRY_DELAY=3
 
