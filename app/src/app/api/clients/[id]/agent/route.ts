@@ -2,13 +2,29 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { provisionRetellAgent, syncRetellAgent } from "@/lib/retell";
+import { provisionRetellAgent, syncRetellAgent, listRetellPhoneNumbers, assignPhoneToAgent } from "@/lib/retell";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(request.url);
+
+  // GET ?phones=1 returns available phone numbers
+  if (searchParams.get("phones")) {
+    try {
+      const phones = await listRetellPhoneNumbers();
+      return NextResponse.json(phones.map((p) => ({
+        phoneNumber: p.phone_number,
+        nickname: p.nickname,
+        pretty: p.phone_number_pretty,
+      })));
+    } catch (err) {
+      return NextResponse.json({ error: String(err) }, { status: 500 });
+    }
+  }
+
   const [client] = await db
     .select()
     .from(clients)
@@ -35,8 +51,8 @@ export async function GET(
 }
 
 /**
- * POST: Provision a new Retell agent + phone number for this client.
- * Used when the client has no agent or has a placeholder.
+ * POST: Provision a new Retell agent for this client, or assign a phone number.
+ * Body: { action: "provision" } or { action: "assignPhone", phoneNumber: "+1..." }
  */
 export async function POST(
   request: Request,
@@ -44,6 +60,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json().catch(() => ({}));
+  const action = body.action || "provision";
 
   const [client] = await db
     .select()
@@ -54,37 +71,65 @@ export async function POST(
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  try {
-    const result = await provisionRetellAgent({
-      name: client.name,
-      prompt: client.agentPrompt ?? undefined,
-      welcomeMessage: client.agentWelcomeMessage ?? undefined,
-      voiceId: client.agentVoiceId ?? undefined,
-      areaCode: body.areaCode || undefined,
-    });
+  if (action === "provision") {
+    try {
+      const result = await provisionRetellAgent({
+        name: client.name,
+        prompt: client.agentPrompt ?? undefined,
+        welcomeMessage: client.agentWelcomeMessage ?? undefined,
+        voiceId: client.agentVoiceId ?? undefined,
+      });
 
-    await db
-      .update(clients)
-      .set({
-        retellAgentId: result.agentId,
-        retellLlmId: result.llmId,
-        retellPhoneNumber: result.phoneNumber,
-      })
-      .where(eq(clients.id, parseInt(id)));
+      await db
+        .update(clients)
+        .set({
+          retellAgentId: result.agentId,
+          retellLlmId: result.llmId,
+        })
+        .where(eq(clients.id, parseInt(id)));
 
-    return NextResponse.json({
-      ok: true,
-      agentId: result.agentId,
-      llmId: result.llmId,
-      phoneNumber: result.phoneNumber,
-    });
-  } catch (err) {
-    console.error("Failed to provision Retell agent:", err);
-    return NextResponse.json(
-      { error: `Provisioning failed: ${err}` },
-      { status: 500 },
-    );
+      return NextResponse.json({
+        ok: true,
+        agentId: result.agentId,
+        llmId: result.llmId,
+      });
+    } catch (err) {
+      console.error("Failed to provision Retell agent:", err);
+      return NextResponse.json(
+        { error: `Provisioning failed: ${err}` },
+        { status: 500 },
+      );
+    }
   }
+
+  if (action === "assignPhone") {
+    const phoneNumber = body.phoneNumber;
+    if (!phoneNumber) {
+      return NextResponse.json({ error: "phoneNumber required" }, { status: 400 });
+    }
+
+    if (!client.retellAgentId) {
+      return NextResponse.json({ error: "Provision agent first" }, { status: 400 });
+    }
+
+    try {
+      await assignPhoneToAgent(phoneNumber, client.retellAgentId);
+      await db
+        .update(clients)
+        .set({ retellPhoneNumber: phoneNumber })
+        .where(eq(clients.id, parseInt(id)));
+
+      return NextResponse.json({ ok: true, phoneNumber });
+    } catch (err) {
+      console.error("Failed to assign phone:", err);
+      return NextResponse.json(
+        { error: `Phone assignment failed: ${err}` },
+        { status: 500 },
+      );
+    }
+  }
+
+  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
 
 /**
@@ -106,7 +151,6 @@ export async function PUT(
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  // Build update fields
   const updates: Record<string, unknown> = {};
   const fields = [
     "agentPrompt", "agentVoiceId", "agentWelcomeMessage",
@@ -118,7 +162,6 @@ export async function PUT(
     if (body[f] !== undefined) updates[f] = body[f];
   }
 
-  // Save to DB first
   if (Object.keys(updates).length > 0) {
     await db.update(clients).set(updates).where(eq(clients.id, parseInt(id)));
   }

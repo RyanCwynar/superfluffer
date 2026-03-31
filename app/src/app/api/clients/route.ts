@@ -14,12 +14,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { name, slug, industry, timezone, areaCode } = body as {
+  const { name, slug, industry, timezone } = body as {
     name: string;
     slug: string;
     industry: string;
     timezone: string;
-    areaCode?: number;
   };
 
   if (!name || !slug || !industry || !timezone) {
@@ -29,20 +28,15 @@ export async function POST(request: Request) {
     );
   }
 
-  // Auto-provision Retell agent + phone number
+  // Auto-provision Retell agent (no phone number — assign separately)
   let retellAgentId: string | null = null;
   let retellLlmId: string | null = null;
-  let retellPhoneNumber: string | null = null;
   let provisionError: string | null = null;
 
   try {
-    const result = await provisionRetellAgent({
-      name,
-      areaCode: areaCode || undefined,
-    });
+    const result = await provisionRetellAgent({ name });
     retellAgentId = result.agentId;
     retellLlmId = result.llmId;
-    retellPhoneNumber = result.phoneNumber;
   } catch (err) {
     console.error("Failed to provision Retell agent:", err);
     provisionError = String(err);
@@ -57,7 +51,6 @@ export async function POST(request: Request) {
       timezone,
       retellAgentId,
       retellLlmId,
-      retellPhoneNumber,
       active: true,
     })
     .returning();

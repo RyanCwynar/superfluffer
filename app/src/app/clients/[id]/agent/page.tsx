@@ -62,7 +62,10 @@ export default function AgentConfigPage() {
   }
 
   const [provisioning, setProvisioning] = useState(false);
-  const needsProvision = !config?.retellAgentId || config?.retellAgentId === "placeholder-agent-id";
+  const [assigningPhone, setAssigningPhone] = useState(false);
+  const [availablePhones, setAvailablePhones] = useState<{ phoneNumber: string; nickname: string | null; pretty: string | null }[] | null>(null);
+  const needsAgent = !config?.retellAgentId || config?.retellAgentId === "placeholder-agent-id";
+  const needsPhone = !needsAgent && !config?.retellPhoneNumber;
 
   async function handleProvision() {
     setProvisioning(true);
@@ -71,11 +74,11 @@ export default function AgentConfigPage() {
       const res = await fetch(`/api/clients/${id}/agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ action: "provision" }),
       });
       const data = await res.json();
       if (data.ok) {
-        setStatus({ type: "success", msg: `Agent provisioned! Phone: ${data.phoneNumber}` });
+        setStatus({ type: "success", msg: "Agent created! Now assign a phone number below." });
         mutate();
       } else {
         setStatus({ type: "error", msg: data.error || "Provisioning failed" });
@@ -87,6 +90,35 @@ export default function AgentConfigPage() {
     }
   }
 
+  async function loadPhones() {
+    const res = await fetch(`/api/clients/${id}/agent?phones=1`);
+    const data = await res.json();
+    if (Array.isArray(data)) setAvailablePhones(data);
+  }
+
+  async function handleAssignPhone(phone: string) {
+    setAssigningPhone(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/clients/${id}/agent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "assignPhone", phoneNumber: phone }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setStatus({ type: "success", msg: `Phone ${phone} assigned to agent` });
+        mutate();
+      } else {
+        setStatus({ type: "error", msg: data.error || "Assignment failed" });
+      }
+    } catch {
+      setStatus({ type: "error", msg: "Phone assignment failed" });
+    } finally {
+      setAssigningPhone(false);
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
     setStatus(null);
@@ -95,7 +127,6 @@ export default function AgentConfigPage() {
       agentPrompt: prompt,
       agentWelcomeMessage: welcomeMessage,
       agentVoiceId: voiceId,
-      retellPhoneNumber: phoneNumber,
       calComEventSlug: calComEventSlug,
       calComEventTypeId: calComEventTypeId,
       callWindowStart: windowStart,
@@ -164,14 +195,13 @@ export default function AgentConfigPage() {
           </div>
         )}
 
-        {/* Provision banner */}
-        {needsProvision && (
+        {/* Step 1: Provision agent */}
+        {needsAgent && (
           <div className="rounded-lg border border-orange-800 bg-orange-900/10 p-5 space-y-3">
             <div>
-              <h2 className="text-sm font-medium text-orange-400">No Retell Agent</h2>
+              <h2 className="text-sm font-medium text-orange-400">Step 1: Create Retell Agent</h2>
               <p className="text-xs text-zinc-500 mt-1">
-                This client needs a Retell agent and phone number provisioned before calls can be placed.
-                This will create an LLM, agent, and purchase a phone number through Retell.
+                Creates an LLM and agent in Retell with a default prompt. You can customize the script below after creation.
               </p>
             </div>
             <button
@@ -179,13 +209,53 @@ export default function AgentConfigPage() {
               disabled={provisioning}
               className="rounded bg-orange-600 px-4 py-2 text-sm font-medium hover:bg-orange-500 disabled:opacity-50"
             >
-              {provisioning ? "Provisioning..." : "Provision Retell Agent + Phone Number"}
+              {provisioning ? "Creating Agent..." : "Create Retell Agent"}
             </button>
           </div>
         )}
 
+        {/* Step 2: Assign phone number */}
+        {needsPhone && (
+          <div className="rounded-lg border border-blue-800 bg-blue-900/10 p-5 space-y-3">
+            <div>
+              <h2 className="text-sm font-medium text-blue-400">Step 2: Assign Phone Number</h2>
+              <p className="text-xs text-zinc-500 mt-1">
+                Select an existing phone number from your Retell account to use for this client's outbound calls.
+              </p>
+            </div>
+            {!availablePhones ? (
+              <button
+                onClick={loadPhones}
+                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500"
+              >
+                Load Available Numbers
+              </button>
+            ) : availablePhones.length === 0 ? (
+              <p className="text-xs text-zinc-500">No phone numbers found on Retell account.</p>
+            ) : (
+              <div className="space-y-2">
+                {availablePhones.map((p) => (
+                  <div key={p.phoneNumber} className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-900 px-3 py-2">
+                    <div>
+                      <span className="text-sm font-mono text-zinc-300">{p.phoneNumber}</span>
+                      {p.nickname && <span className="text-xs text-zinc-500 ml-2">{p.nickname}</span>}
+                    </div>
+                    <button
+                      onClick={() => handleAssignPhone(p.phoneNumber)}
+                      disabled={assigningPhone}
+                      className="rounded bg-blue-600 px-3 py-1 text-xs font-medium hover:bg-blue-500 disabled:opacity-50"
+                    >
+                      {assigningPhone ? "..." : "Use This Number"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Retell IDs */}
-        {config?.retellAgentId && !needsProvision && (
+        {config?.retellAgentId && !needsAgent && (
           <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-xs text-zinc-500 flex gap-6">
             <span>Agent: <span className="font-mono text-zinc-400">{config.retellAgentId}</span></span>
             <span>LLM: <span className="font-mono text-zinc-400">{config.retellLlmId}</span></span>

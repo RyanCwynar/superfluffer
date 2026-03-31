@@ -57,16 +57,14 @@ export async function verifyRetellSignature(
 }
 
 /**
- * Provision a full Retell setup for a client: LLM + Agent + Phone Number.
- * Returns all IDs to store on the client record.
+ * Create a Retell LLM + Agent for a client (no phone number).
  */
 export async function provisionRetellAgent(config: {
   name: string;
   prompt?: string;
   welcomeMessage?: string;
   voiceId?: string;
-  areaCode?: number;
-}): Promise<{ agentId: string; llmId: string; phoneNumber: string }> {
+}): Promise<{ agentId: string; llmId: string }> {
   const retell = await getRetellClient();
 
   const llm = await retell.llm.create({
@@ -84,18 +82,29 @@ export async function provisionRetellAgent(config: {
     webhook_url: WEBHOOK_URL,
   });
 
-  const phone = await retell.phoneNumber.create({
-    area_code: config.areaCode || 512,
-    nickname: `SuperFluffer - ${config.name}`,
-    outbound_agents: [{ agent_id: agent.agent_id, weight: 1 }],
-    inbound_agents: [{ agent_id: agent.agent_id, weight: 1 }],
-  });
-
   return {
     agentId: agent.agent_id,
     llmId: llm.llm_id,
-    phoneNumber: phone.phone_number,
   };
+}
+
+/**
+ * List all phone numbers on the Retell account.
+ */
+export async function listRetellPhoneNumbers() {
+  const retell = await getRetellClient();
+  return retell.phoneNumber.list();
+}
+
+/**
+ * Assign a phone number to an agent (bind for outbound + inbound).
+ */
+export async function assignPhoneToAgent(phoneNumber: string, agentId: string) {
+  const retell = await getRetellClient();
+  await retell.phoneNumber.update(phoneNumber, {
+    outbound_agents: [{ agent_id: agentId, weight: 1 }],
+    inbound_agents: [{ agent_id: agentId, weight: 1 }],
+  });
 }
 
 /**
