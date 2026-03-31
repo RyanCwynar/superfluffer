@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { provisionRetellAgent, syncRetellAgent, listRetellPhoneNumbers, assignPhoneToAgent } from "@/lib/retell";
+import { provisionRetellAgent, syncRetellAgent, listRetellPhoneNumbers, assignPhoneToAgent, getRetellClient } from "@/lib/retell";
 
 export async function GET(
   request: Request,
@@ -142,6 +142,35 @@ export async function POST(
       console.error("Failed to assign phone:", err);
       return NextResponse.json(
         { error: `Phone assignment failed: ${err}` },
+        { status: 500 },
+      );
+    }
+  }
+
+  if (action === "buyPhone") {
+    if (!client.retellAgentId) {
+      return NextResponse.json({ error: "Provision agent first" }, { status: 400 });
+    }
+
+    try {
+      const retell = await getRetellClient();
+      const phone = await retell.phoneNumber.create({
+        area_code: body.areaCode || 512,
+        nickname: `SuperFluffer - ${client.name}`,
+        outbound_agents: [{ agent_id: client.retellAgentId, weight: 1 }],
+        inbound_agents: [{ agent_id: client.retellAgentId, weight: 1 }],
+      });
+
+      await db
+        .update(clients)
+        .set({ retellPhoneNumber: phone.phone_number })
+        .where(eq(clients.id, parseInt(id)));
+
+      return NextResponse.json({ ok: true, phoneNumber: phone.phone_number });
+    } catch (err) {
+      console.error("Failed to buy phone:", err);
+      return NextResponse.json(
+        { error: `Buy phone failed: ${err}` },
         { status: 500 },
       );
     }

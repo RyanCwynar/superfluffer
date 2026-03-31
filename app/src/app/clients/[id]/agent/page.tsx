@@ -65,7 +65,7 @@ export default function AgentConfigPage() {
   const [assigningPhone, setAssigningPhone] = useState(false);
   const [availablePhones, setAvailablePhones] = useState<{ phoneNumber: string; nickname: string | null; pretty: string | null }[] | null>(null);
   const needsAgent = !config?.retellAgentId || config?.retellAgentId === "placeholder-agent-id";
-  const needsPhone = !needsAgent && !config?.retellPhoneNumber;
+  const needsPhone = !needsAgent && (!config?.retellPhoneNumber || config?.retellPhoneNumber === "placeholder-phone");
 
   async function handleProvision() {
     setProvisioning(true);
@@ -126,6 +126,31 @@ export default function AgentConfigPage() {
       setStatus({ type: "error", msg: "Phone assignment failed" });
     } finally {
       setAssigningPhone(false);
+    }
+  }
+
+  const [buyingPhone, setBuyingPhone] = useState(false);
+
+  async function handleBuyPhone() {
+    setBuyingPhone(true);
+    setStatus({ type: "success", msg: "Purchasing new phone number..." });
+    try {
+      const res = await fetch(`/api/clients/${id}/agent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "buyPhone" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setStatus({ type: "success", msg: `New number purchased: ${data.phoneNumber}` });
+        mutate();
+      } else {
+        setStatus({ type: "error", msg: data.error || "Purchase failed" });
+      }
+    } catch (err) {
+      setStatus({ type: "error", msg: `Purchase failed: ${err}` });
+    } finally {
+      setBuyingPhone(false);
     }
   }
 
@@ -228,25 +253,39 @@ export default function AgentConfigPage() {
           </div>
         )}
 
-        {/* Step 2: Assign phone number */}
+        {/* Phone number assignment */}
         {needsPhone && (
-          <div className="rounded-lg border border-blue-800 bg-blue-900/10 p-5 space-y-3">
+          <div className="rounded-lg border border-blue-800 bg-blue-900/10 p-5 space-y-4">
             <div>
-              <h2 className="text-sm font-medium text-blue-400">Step 2: Assign Phone Number</h2>
+              <h2 className="text-sm font-medium text-blue-400">Assign Phone Number</h2>
               <p className="text-xs text-zinc-500 mt-1">
-                Select an existing phone number from your Retell account to use for this client's outbound calls.
+                Choose an existing number from your Retell account, or purchase a new one.
               </p>
             </div>
-            {!availablePhones ? (
+
+            <div className="flex gap-3">
               <button
-                onClick={loadPhones}
+                onClick={async () => {
+                  await loadPhones();
+                }}
                 className="rounded bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500"
               >
-                Load Available Numbers
+                Use Existing Number
               </button>
-            ) : availablePhones.length === 0 ? (
-              <p className="text-xs text-zinc-500">No phone numbers found on Retell account.</p>
-            ) : (
+              <button
+                onClick={handleBuyPhone}
+                disabled={buyingPhone}
+                className={`rounded px-4 py-2 text-sm font-medium border ${
+                  buyingPhone
+                    ? "bg-zinc-700 text-zinc-400 animate-pulse border-zinc-700"
+                    : "bg-zinc-900 text-zinc-300 border-zinc-700 hover:border-zinc-500"
+                }`}
+              >
+                {buyingPhone ? "Purchasing..." : "Buy New Number"}
+              </button>
+            </div>
+
+            {availablePhones && availablePhones.length > 0 && (
               <div className="space-y-2">
                 {availablePhones.map((p) => (
                   <div key={p.phoneNumber} className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-900 px-3 py-2">
@@ -259,11 +298,14 @@ export default function AgentConfigPage() {
                       disabled={assigningPhone}
                       className="rounded bg-blue-600 px-3 py-1 text-xs font-medium hover:bg-blue-500 disabled:opacity-50"
                     >
-                      {assigningPhone ? "..." : "Use This Number"}
+                      {assigningPhone ? "..." : "Use This"}
                     </button>
                   </div>
                 ))}
               </div>
+            )}
+            {availablePhones && availablePhones.length === 0 && (
+              <p className="text-xs text-zinc-500">No phone numbers on Retell account. Buy one above.</p>
             )}
           </div>
         )}
