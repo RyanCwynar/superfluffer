@@ -1,5 +1,6 @@
 import Retell from "retell-sdk";
 import { getRequiredSetting } from "@/lib/settings";
+import type { LlmCreateParams } from "retell-sdk/resources/llm";
 
 const WEBHOOK_URL = "https://superfluffer.byldr.co/api/retell/webhook";
 
@@ -15,7 +16,7 @@ Your goal is to book a quick 15-minute meeting with the homeowner so the agent c
 
 3. **Tease the strategy.** Mention that the agent you work with has been getting results for homeowners in similar situations — homes that sat or were pulled — by using a different approach. Don't go into detail. The point is to create curiosity, not to pitch on the phone.
 
-4. **Ask for the meeting.** Suggest a quick 15-minute call or Zoom with the agent. Frame it as low-commitment: "no pressure at all, just a quick conversation to see if it even makes sense for your situation." If they have a scheduling link available, mention it: {{cal_com_link}}
+4. **Ask for the meeting.** Suggest a quick 15-minute call or Zoom with the agent. Frame it as low-commitment: "no pressure at all, just a quick conversation to see if it even makes sense for your situation." If they're interested, use the check_availability tool to find a time, then book_appointment to confirm it.
 
 5. **Handle objections gently:**
    - "I'm not interested in selling anymore" → "Totally get it. Would it hurt to just hear what the strategy is? Worst case you're more informed for whenever you do decide."
@@ -23,9 +24,9 @@ Your goal is to book a quick 15-minute meeting with the homeowner so the agent c
    - "What's the strategy?" → "It's a positioning approach the agent walks through — I'd butcher it if I tried to explain it, which is why he does the calls himself. It's really just 15 minutes."
    - "I'm busy" → "Totally understand. What day this week works best for a quick call? Even 10 minutes."
 
-6. **If they say yes**, confirm a time and let them know the agent will reach out. Be enthusiastic but not over the top.
+6. **If they say yes**, use the check_availability and book_appointment tools to schedule it right on the call. Confirm the time with them before booking.
 
-7. **If they firmly decline**, be gracious. Thank them for their time and wish them well.
+7. **If they firmly decline**, be gracious. Thank them for their time and wish them well, then end the call.
 
 ## Tone
 - Sound like a real person, not a robot or a script reader
@@ -45,6 +46,44 @@ export async function getRetellClient() {
 }
 
 /**
+ * Build the tools array for an LLM, including Cal.com if configured.
+ */
+function buildLlmTools(calConfig?: {
+  calApiKey: string;
+  eventTypeId: string;
+  timezone?: string;
+}): LlmCreateParams["general_tools"] {
+  const tools: LlmCreateParams["general_tools"] = [
+    {
+      type: "end_call",
+      name: "end_call",
+      description: "End the call when the conversation is complete, the lead has firmly declined, or there's nothing more to discuss.",
+    },
+  ];
+
+  if (calConfig?.calApiKey && calConfig?.eventTypeId) {
+    tools.push({
+      type: "check_availability_cal",
+      name: "check_availability",
+      description: "Check available time slots on the calendar for scheduling a meeting. Use this when the lead is interested in booking.",
+      cal_api_key: calConfig.calApiKey,
+      event_type_id: calConfig.eventTypeId,
+      timezone: calConfig.timezone,
+    });
+    tools.push({
+      type: "book_appointment_cal",
+      name: "book_appointment",
+      description: "Book an appointment on the calendar once the lead has confirmed a time slot. Always confirm the time with the lead before booking.",
+      cal_api_key: calConfig.calApiKey,
+      event_type_id: calConfig.eventTypeId,
+      timezone: calConfig.timezone,
+    });
+  }
+
+  return tools;
+}
+
+/**
  * Create a Retell LLM + Agent for a client (no phone number).
  */
 export async function provisionRetellAgent(config: {
@@ -52,12 +91,22 @@ export async function provisionRetellAgent(config: {
   prompt?: string;
   welcomeMessage?: string;
   voiceId?: string;
+  calApiKey?: string;
+  calEventTypeId?: string;
+  timezone?: string;
 }): Promise<{ agentId: string; llmId: string }> {
   const retell = await getRetellClient();
+
+  const tools = buildLlmTools(
+    config.calApiKey && config.calEventTypeId
+      ? { calApiKey: config.calApiKey, eventTypeId: config.calEventTypeId, timezone: config.timezone }
+      : undefined,
+  );
 
   const llm = await retell.llm.create({
     general_prompt: config.prompt || DEFAULT_PROMPT,
     begin_message: config.welcomeMessage || DEFAULT_WELCOME,
+    general_tools: tools,
   });
 
   const agent = await retell.agent.create({
@@ -105,12 +154,22 @@ export async function syncRetellAgent(config: {
   prompt: string;
   welcomeMessage?: string;
   voiceId?: string;
+  calApiKey?: string;
+  calEventTypeId?: string;
+  timezone?: string;
 }): Promise<void> {
   const retell = await getRetellClient();
+
+  const tools = buildLlmTools(
+    config.calApiKey && config.calEventTypeId
+      ? { calApiKey: config.calApiKey, eventTypeId: config.calEventTypeId, timezone: config.timezone }
+      : undefined,
+  );
 
   await retell.llm.update(config.llmId, {
     general_prompt: config.prompt,
     begin_message: config.welcomeMessage || null,
+    general_tools: tools,
   });
 
   await retell.agent.update(config.agentId, {

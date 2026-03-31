@@ -217,6 +217,9 @@ export async function PUT(
   const prompt = body.agentPrompt ?? client.agentPrompt;
   if (prompt && client.retellAgentId && client.retellLlmId) {
     try {
+      const calApiKey = body.calComApiKey ?? client.calComApiKey;
+      const calEventTypeId = body.calComEventTypeId ?? client.calComEventTypeId;
+
       await syncRetellAgent({
         agentId: client.retellAgentId,
         llmId: client.retellLlmId,
@@ -224,6 +227,9 @@ export async function PUT(
         prompt,
         welcomeMessage: body.agentWelcomeMessage ?? client.agentWelcomeMessage ?? undefined,
         voiceId: body.agentVoiceId ?? client.agentVoiceId ?? undefined,
+        calApiKey: calApiKey ?? undefined,
+        calEventTypeId: calEventTypeId ?? undefined,
+        timezone: client.timezone,
       });
     } catch (err) {
       console.error("Failed to sync to Retell:", err);
