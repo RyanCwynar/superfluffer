@@ -28,7 +28,7 @@ npm prune --omit=dev
 
 echo "==> Restarting pm2..."
 cd "$REPO_DIR"
-pm2 restart ecosystem.config.js --update-env || pm2 start ecosystem.config.js
+pm2 restart superfluffer --update-env || pm2 start ecosystem.config.js --only superfluffer
 
 echo "==> Health check..."
 HEALTHY=false
