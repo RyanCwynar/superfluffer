@@ -34,6 +34,7 @@ export interface Lead {
   appointmentTime: string | null;
   calendarEventId: string | null;
   notes: string | null;
+  transcript: string | null;
   batchId: number;
   clientId: number;
   createdAt: string | null;

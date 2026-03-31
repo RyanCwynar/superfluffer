@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { leads } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { verifyRetellSignature } from "@/lib/retell";
+import { verifyRetellSignature, getRetellClient } from "@/lib/retell";
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -41,6 +41,20 @@ export async function POST(request: Request) {
 
   switch (event) {
     case "call_ended": {
+      // Fetch and store transcript from Retell
+      let transcript: string | null = null;
+      if (call.call_id) {
+        try {
+          const retell = getRetellClient();
+          const callDetail = await retell.call.retrieve(call.call_id);
+          if (callDetail.transcript) {
+            transcript = callDetail.transcript;
+          }
+        } catch (err) {
+          console.error(`Failed to fetch transcript for ${call.call_id}:`, err);
+        }
+      }
+
       const reason = call.disconnection_reason;
       if (
         reason === "dial_no_answer" ||
@@ -65,14 +79,24 @@ export async function POST(request: Request) {
             .set({
               status: "no_answer",
               nextRetryAt: new Date(Date.now() + delayMs),
+              ...(transcript ? { transcript } : {}),
             })
             .where(eq(leads.id, id));
         } else {
           await db
             .update(leads)
-            .set({ status: "unreachable" })
+            .set({
+              status: "unreachable",
+              ...(transcript ? { transcript } : {}),
+            })
             .where(eq(leads.id, id));
         }
+      } else if (transcript) {
+        // Connected call that ended normally — store transcript
+        await db
+          .update(leads)
+          .set({ transcript })
+          .where(eq(leads.id, id));
       }
       break;
     }

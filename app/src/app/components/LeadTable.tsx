@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Lead } from "@/lib/types";
 
 const STATUS_STYLES: Record<string, { label: string; color: string }> = {
@@ -22,7 +23,60 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function LeadDetail({ lead }: { lead: Lead }) {
+  return (
+    <div className="px-4 py-4 space-y-4 bg-zinc-900/30">
+      <div className="grid grid-cols-2 gap-4 text-xs">
+        <div>
+          <span className="text-zinc-500">Email:</span>{" "}
+          <span className="text-zinc-300">{lead.email ?? "—"}</span>
+        </div>
+        <div>
+          <span className="text-zinc-500">Appointment:</span>{" "}
+          <span className="text-zinc-300">{lead.appointmentTime ?? "—"}</span>
+        </div>
+        <div>
+          <span className="text-zinc-500">Last Call:</span>{" "}
+          <span className="text-zinc-300">
+            {lead.lastCallAt
+              ? new Date(lead.lastCallAt).toLocaleString()
+              : "—"}
+          </span>
+        </div>
+        <div>
+          <span className="text-zinc-500">Next Retry:</span>{" "}
+          <span className="text-zinc-300">
+            {lead.nextRetryAt
+              ? new Date(lead.nextRetryAt).toLocaleString()
+              : "—"}
+          </span>
+        </div>
+      </div>
+
+      {lead.notes && (
+        <div>
+          <p className="text-xs text-zinc-500 mb-1">Call Summary</p>
+          <p className="text-sm text-zinc-300 bg-zinc-800 rounded p-3">
+            {lead.notes}
+          </p>
+        </div>
+      )}
+
+      {lead.transcript && (
+        <div>
+          <p className="text-xs text-zinc-500 mb-1">Transcript</p>
+          <pre className="text-xs text-zinc-400 bg-zinc-800 rounded p-3 max-h-64 overflow-y-auto whitespace-pre-wrap font-sans">
+            {lead.transcript}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LeadTable({ leads }: { leads: Lead[] }) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
   if (leads.length === 0) {
     return (
       <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-8 text-center text-zinc-500">
@@ -66,27 +120,44 @@ export default function LeadTable({ leads }: { leads: Lead[] }) {
           </thead>
           <tbody>
             {leads.map((lead) => (
-              <tr
-                key={lead.id}
-                className="border-t border-zinc-800 hover:bg-zinc-900/50"
-              >
-                <td className="px-4 py-2 text-zinc-200">{lead.name}</td>
-                <td className="px-4 py-2 font-mono text-xs text-zinc-400">
-                  {lead.phone}
-                </td>
-                <td className="px-4 py-2">
-                  <StatusBadge status={lead.status} />
-                </td>
-                <td className="px-4 py-2 text-zinc-500">
-                  {lead.callAttempts}/3
-                </td>
-                <td className="px-4 py-2 text-xs text-zinc-400">
-                  {lead.appointmentTime ?? "-"}
-                </td>
-                <td className="max-w-xs truncate px-4 py-2 text-xs text-zinc-500">
-                  {lead.notes ?? "-"}
-                </td>
-              </tr>
+              <>
+                <tr
+                  key={lead.id}
+                  className="border-t border-zinc-800 hover:bg-zinc-900/50 cursor-pointer"
+                  onClick={() =>
+                    setExpandedId(expandedId === lead.id ? null : lead.id)
+                  }
+                >
+                  <td className="px-4 py-2 text-zinc-200">
+                    <span className="mr-1.5 text-zinc-600 text-xs">
+                      {expandedId === lead.id ? "▼" : "▶"}
+                    </span>
+                    {lead.name}
+                  </td>
+                  <td className="px-4 py-2 font-mono text-xs text-zinc-400">
+                    {lead.phone}
+                  </td>
+                  <td className="px-4 py-2">
+                    <StatusBadge status={lead.status} />
+                  </td>
+                  <td className="px-4 py-2 text-zinc-500">
+                    {lead.callAttempts}/5
+                  </td>
+                  <td className="px-4 py-2 text-xs text-zinc-400">
+                    {lead.appointmentTime ?? "—"}
+                  </td>
+                  <td className="max-w-xs truncate px-4 py-2 text-xs text-zinc-500">
+                    {lead.notes ?? "—"}
+                  </td>
+                </tr>
+                {expandedId === lead.id && (
+                  <tr key={`${lead.id}-detail`} className="border-t border-zinc-800/50">
+                    <td colSpan={6}>
+                      <LeadDetail lead={lead} />
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
           </tbody>
         </table>

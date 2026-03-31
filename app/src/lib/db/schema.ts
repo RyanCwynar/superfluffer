@@ -45,6 +45,7 @@ export const leads = pgTable("leads", {
   appointmentTime: text("appointment_time"),
   calendarEventId: text("calendar_event_id"),
   notes: text("notes"),
+  transcript: text("transcript"),
   batchId: integer("batch_id")
     .notNull()
     .references(() => batches.id),
