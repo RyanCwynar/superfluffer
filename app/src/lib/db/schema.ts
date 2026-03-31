@@ -7,6 +7,14 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
+export const apiKeys = pgTable("api_keys", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  role: text("role").notNull().default("admin"),
+  hashedKey: text("hashed_key").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const clients = pgTable("clients", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),

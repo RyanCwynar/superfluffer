@@ -1,8 +1,8 @@
 "use client";
 
 import useSWR from "swr";
-import { UserButton } from "@clerk/nextjs";
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import CsvUpload from "./components/CsvUpload";
 import LeadTable from "./components/LeadTable";
 import BatchList from "./components/BatchList";
@@ -73,6 +73,7 @@ function FunnelMetrics({ leads }: { leads: Lead[] }) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
@@ -130,7 +131,15 @@ export default function Home() {
               setSelectedBatchId(null);
             }}
           />
-          <UserButton />
+          <button
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              router.push("/login");
+            }}
+            className="rounded px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600"
+          >
+            Logout
+          </button>
         </div>
       </header>
 
