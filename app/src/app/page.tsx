@@ -128,6 +128,12 @@ export default function Home() {
             }}
           />
           <Link
+            href="/clients"
+            className="rounded px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600"
+          >
+            Clients
+          </Link>
+          <Link
             href="/settings"
             className="rounded px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600"
           >
