@@ -15,8 +15,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing signature" }, { status: 401 });
   }
 
+  // Try webhook secret first, fall back to API key
+  const webhookSecret = await getSetting("RETELL_WEBHOOK_SECRET");
   const apiKey = await getSetting("RETELL_API_KEY");
-  if (!apiKey) {
+  const secret = webhookSecret || apiKey;
+
+  if (!secret) {
     return NextResponse.json(
       { error: "Server misconfigured" },
       { status: 500 },
@@ -25,7 +29,7 @@ export async function POST(request: Request) {
 
   let isValid = false;
   try {
-    isValid = await retellVerify(body, apiKey, signature);
+    isValid = await retellVerify(body, secret, signature);
   } catch (err) {
     console.error("[webhook] Signature verification error:", err);
   }
