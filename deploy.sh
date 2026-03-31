@@ -18,7 +18,7 @@ cd "$APP_DIR"
 npm ci
 
 echo "==> Running database migrations..."
-npx drizzle-kit push --force
+./node_modules/.bin/drizzle-kit push --force
 
 echo "==> Building..."
 npm run build
