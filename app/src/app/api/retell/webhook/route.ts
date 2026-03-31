@@ -2,14 +2,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { leads, calls } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { verifyRetellSignature, getRetellClient } from "@/lib/retell";
+import { getRetellClient } from "@/lib/retell";
 import { getSetting } from "@/lib/settings";
+import { verify as retellVerify } from "retell-sdk";
 
 export async function POST(request: Request) {
   const body = await request.text();
   const signature = request.headers.get("x-retell-signature");
 
   if (!signature) {
+    console.error("[webhook] Missing x-retell-signature header");
     return NextResponse.json({ error: "Missing signature" }, { status: 401 });
   }
 
@@ -21,13 +23,22 @@ export async function POST(request: Request) {
     );
   }
 
-  const isValid = await verifyRetellSignature(body, apiKey, signature);
+  let isValid = false;
+  try {
+    isValid = await retellVerify(body, apiKey, signature);
+  } catch (err) {
+    console.error("[webhook] Signature verification error:", err);
+  }
+
   if (!isValid) {
+    console.error("[webhook] Invalid signature");
     return NextResponse.json(
       { error: "Invalid signature" },
       { status: 401 },
     );
   }
+
+  console.log("[webhook] Signature valid, processing event");
 
   const payload = JSON.parse(body);
   const event = payload.event;
