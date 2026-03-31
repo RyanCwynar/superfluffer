@@ -26,15 +26,22 @@ if (!dbUrl) {
 const plainKey = `sf_${randomBytes(24).toString("hex")}`;
 const hashedKey = createHash("sha256").update(plainKey).digest("hex");
 
-const sql = postgres(dbUrl);
+async function main() {
+  const sql = postgres(dbUrl!);
 
-await sql`
-  INSERT INTO api_keys (name, role, hashed_key)
-  VALUES (${name}, ${role}, ${hashedKey})
-`;
+  await sql`
+    INSERT INTO api_keys (name, role, hashed_key)
+    VALUES (${name}, ${role}, ${hashedKey})
+  `;
 
-console.log(`\nAPI key created for "${name}" (role: ${role})`);
-console.log(`\nKey: ${plainKey}\n`);
-console.log("Save this key — it will not be shown again.");
+  console.log(`\nAPI key created for "${name}" (role: ${role})`);
+  console.log(`\nKey: ${plainKey}\n`);
+  console.log("Save this key — it will not be shown again.");
 
-await sql.end();
+  await sql.end();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
