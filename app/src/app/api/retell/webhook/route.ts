@@ -160,7 +160,20 @@ export async function POST(request: Request) {
       }
       break;
     }
+
+    case "call_transcript_updated": {
+      // Live transcript update during or after a call
+      const transcript = call.transcript;
+      if (retellCallId && transcript) {
+        await db
+          .update(calls)
+          .set({ transcript })
+          .where(eq(calls.retellCallId, retellCallId));
+      }
+      break;
+    }
   }
 
+  console.log(`[webhook] Processed ${event} for lead ${id}`);
   return NextResponse.json({ ok: true });
 }

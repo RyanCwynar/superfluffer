@@ -62,12 +62,13 @@ function buildLlmTools(calConfig?: {
   ];
 
   if (calConfig?.calApiKey && calConfig?.eventTypeId) {
+    const eventTypeId = parseInt(calConfig.eventTypeId);
     tools.push({
       type: "check_availability_cal",
       name: "check_availability",
       description: "Check available time slots on the calendar for scheduling a meeting. Use this when the lead is interested in booking.",
       cal_api_key: calConfig.calApiKey,
-      event_type_id: calConfig.eventTypeId,
+      event_type_id: eventTypeId,
       timezone: calConfig.timezone,
     });
     tools.push({
@@ -75,7 +76,7 @@ function buildLlmTools(calConfig?: {
       name: "book_appointment",
       description: "Book an appointment on the calendar once the lead has confirmed a time slot. Always confirm the time with the lead before booking.",
       cal_api_key: calConfig.calApiKey,
-      event_type_id: calConfig.eventTypeId,
+      event_type_id: eventTypeId,
       timezone: calConfig.timezone,
     });
   }
