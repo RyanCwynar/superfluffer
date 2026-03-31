@@ -4,6 +4,7 @@ import { batches, leads, clients, calls } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getRetellClient } from "@/lib/retell";
 import { normalizePhone } from "@/lib/phone";
+import { isInCallWindow, getNextCallWindowStart } from "@/lib/schedule";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -80,7 +81,31 @@ export async function POST(request: Request) {
       .where(eq(clients.id, clientId));
     if (!client) return;
 
+    // Check call window — if outside, schedule for next window
+    if (!isInCallWindow(client)) {
+      const nextWindow = getNextCallWindowStart(client);
+      for (const lead of insertedLeads) {
+        await db
+          .update(leads)
+          .set({ status: "active", nextRetryAt: nextWindow })
+          .where(eq(leads.id, lead.id));
+      }
+      await db
+        .update(batches)
+        .set({ status: "scheduled" })
+        .where(eq(batches.id, batch.id));
+      return;
+    }
+
+    if (!client.retellAgentId || !client.retellPhoneNumber) {
+      console.error(`Client ${client.name} missing Retell agent or phone`);
+      return;
+    }
+
     const retell = await getRetellClient();
+    const calComLink = client.calComEventSlug
+      ? `https://cal.com/${client.slug}/${client.calComEventSlug}`
+      : "";
 
     await db
       .update(batches)
@@ -96,6 +121,7 @@ export async function POST(request: Request) {
           retell_llm_dynamic_variables: {
             lead_name: lead.name,
             lead_phone: lead.phone,
+            cal_com_link: calComLink,
           },
           metadata: {
             leadId: String(lead.id),

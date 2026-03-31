@@ -3,6 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Client } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -192,12 +193,20 @@ function ClientCard({
           )}
         </div>
       </div>
-      <button
-        onClick={onEdit}
-        className="rounded px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600"
-      >
-        Edit
-      </button>
+      <div className="flex items-center gap-2">
+        <Link
+          href={`/clients/${client.id}/agent`}
+          className="rounded px-3 py-1.5 text-xs text-blue-400 hover:text-blue-300 border border-blue-800 hover:border-blue-600"
+        >
+          Configure Agent
+        </Link>
+        <button
+          onClick={onEdit}
+          className="rounded px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600"
+        >
+          Edit
+        </button>
+      </div>
     </div>
   );
 }

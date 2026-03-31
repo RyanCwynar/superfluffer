@@ -4,9 +4,18 @@ export interface Client {
   slug: string;
   industry: string;
   timezone: string;
-  retellAgentId: string;
-  retellPhoneNumber: string;
+  retellAgentId: string | null;
+  retellLlmId: string | null;
+  retellPhoneNumber: string | null;
+  agentPrompt: string | null;
+  agentVoiceId: string | null;
+  agentWelcomeMessage: string | null;
+  calComApiKey: string | null;
   calComEventSlug: string | null;
+  calComEventTypeId: string | null;
+  callWindowStart: string | null;
+  callWindowEnd: string | null;
+  callDays: string | null;
   active: boolean;
   createdAt: string | null;
 }

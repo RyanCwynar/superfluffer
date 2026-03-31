@@ -39,3 +39,59 @@ export async function verifyRetellSignature(
 
   return computed === digest;
 }
+
+/**
+ * Create a new Retell agent + LLM for a client.
+ * Returns { agentId, llmId } to store on the client record.
+ */
+export async function createRetellAgent(config: {
+  name: string;
+  prompt: string;
+  welcomeMessage?: string;
+  voiceId?: string;
+}): Promise<{ agentId: string; llmId: string }> {
+  const retell = await getRetellClient();
+
+  const llm = await retell.llm.create({
+    general_prompt: config.prompt,
+    begin_message: config.welcomeMessage || null,
+  });
+
+  const agent = await retell.agent.create({
+    agent_name: config.name,
+    voice_id: config.voiceId || "11labs-Adrian",
+    response_engine: {
+      type: "retell-llm",
+      llm_id: llm.llm_id,
+    },
+  });
+
+  return {
+    agentId: agent.agent_id,
+    llmId: llm.llm_id,
+  };
+}
+
+/**
+ * Update an existing Retell agent + LLM config.
+ */
+export async function syncRetellAgent(config: {
+  agentId: string;
+  llmId: string;
+  name: string;
+  prompt: string;
+  welcomeMessage?: string;
+  voiceId?: string;
+}): Promise<void> {
+  const retell = await getRetellClient();
+
+  await retell.llm.update(config.llmId, {
+    general_prompt: config.prompt,
+    begin_message: config.welcomeMessage || null,
+  });
+
+  await retell.agent.update(config.agentId, {
+    agent_name: config.name,
+    voice_id: config.voiceId || undefined,
+  });
+}

@@ -32,9 +32,22 @@ export const clients = pgTable("clients", {
   slug: text("slug").notNull().unique(),
   industry: text("industry").notNull(),
   timezone: text("timezone").notNull(),
-  retellAgentId: text("retell_agent_id").notNull(),
-  retellPhoneNumber: text("retell_phone_number").notNull(),
+  // Retell integration
+  retellAgentId: text("retell_agent_id"),
+  retellLlmId: text("retell_llm_id"),
+  retellPhoneNumber: text("retell_phone_number"),
+  // Agent config
+  agentPrompt: text("agent_prompt"),
+  agentVoiceId: text("agent_voice_id"),
+  agentWelcomeMessage: text("agent_welcome_message"),
+  // Cal.com integration (per-client)
+  calComApiKey: text("cal_com_api_key"),
   calComEventSlug: text("cal_com_event_slug"),
+  calComEventTypeId: text("cal_com_event_type_id"),
+  // Call scheduling
+  callWindowStart: text("call_window_start").default("09:00"),
+  callWindowEnd: text("call_window_end").default("17:00"),
+  callDays: text("call_days").default("mon,tue,wed,thu,fri"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });

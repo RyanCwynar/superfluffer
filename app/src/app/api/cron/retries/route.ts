@@ -4,6 +4,7 @@ import { leads, clients, calls } from "@/lib/db/schema";
 import { eq, lte, and } from "drizzle-orm";
 import { getRetellClient } from "@/lib/retell";
 import { getSetting } from "@/lib/settings";
+import { isInCallWindow, getNextCallWindowStart } from "@/lib/schedule";
 
 export async function GET(request: Request) {
   const cronSecret = await getSetting("CRON_SECRET");
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
 
   const retell = await getRetellClient();
   let retried = 0;
+  let deferred = 0;
 
   for (const lead of retryLeads) {
     const [client] = await db
@@ -32,6 +34,23 @@ export async function GET(request: Request) {
       .from(clients)
       .where(eq(clients.id, lead.clientId));
     if (!client) continue;
+
+    // Check call window
+    if (!isInCallWindow(client)) {
+      const nextWindow = getNextCallWindowStart(client);
+      await db
+        .update(leads)
+        .set({ nextRetryAt: nextWindow })
+        .where(eq(leads.id, lead.id));
+      deferred++;
+      continue;
+    }
+
+    if (!client.retellAgentId || !client.retellPhoneNumber) continue;
+
+    const calComLink = client.calComEventSlug
+      ? `https://cal.com/${client.slug}/${client.calComEventSlug}`
+      : "";
 
     try {
       const call = await retell.call.createPhoneCall({
@@ -41,6 +60,7 @@ export async function GET(request: Request) {
         retell_llm_dynamic_variables: {
           lead_name: lead.name,
           lead_phone: lead.phone,
+          cal_com_link: calComLink,
         },
         metadata: {
           leadId: String(lead.id),
@@ -50,7 +70,6 @@ export async function GET(request: Request) {
 
       const newAttempt = lead.callAttempts + 1;
 
-      // Create call record
       await db.insert(calls).values({
         leadId: lead.id,
         clientId: lead.clientId,
@@ -60,7 +79,6 @@ export async function GET(request: Request) {
         calledAt: new Date(),
       });
 
-      // Update lead
       await db
         .update(leads)
         .set({
@@ -76,5 +94,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ retried });
+  return NextResponse.json({ retried, deferred });
 }
