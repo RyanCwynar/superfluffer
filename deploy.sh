@@ -15,13 +15,16 @@ git pull origin main
 
 echo "==> Installing dependencies..."
 cd "$APP_DIR"
-npm ci --omit=dev
+npm ci
 
 echo "==> Running database migrations..."
 npx drizzle-kit push --force
 
 echo "==> Building..."
 npm run build
+
+echo "==> Pruning dev dependencies..."
+npm prune --omit=dev
 
 echo "==> Restarting pm2..."
 cd "$REPO_DIR"
