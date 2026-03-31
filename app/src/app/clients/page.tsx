@@ -31,9 +31,6 @@ function ClientForm({
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [industry, setIndustry] = useState(initial?.industry ?? "");
   const [timezone, setTimezone] = useState(initial?.timezone ?? "America/Chicago");
-  const [retellAgentId, setRetellAgentId] = useState(initial?.retellAgentId ?? "");
-  const [retellPhoneNumber, setRetellPhoneNumber] = useState(initial?.retellPhoneNumber ?? "");
-  const [calComEventSlug, setCalComEventSlug] = useState(initial?.calComEventSlug ?? "");
   const [saving, setSaving] = useState(false);
 
   function autoSlug(n: string) {
@@ -49,9 +46,6 @@ function ClientForm({
       slug: slug || autoSlug(name),
       industry,
       timezone,
-      retellAgentId,
-      retellPhoneNumber,
-      calComEventSlug: calComEventSlug || null,
     });
     setSaving(false);
   }
@@ -108,45 +102,11 @@ function ClientForm({
         </div>
       </div>
 
-      <div className="border-t border-zinc-800 pt-4">
-        <p className="text-xs text-zinc-500 mb-3">Retell Integration</p>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Retell Agent ID</label>
-            <input
-              type="text"
-              value={retellAgentId}
-              onChange={(e) => setRetellAgentId(e.target.value)}
-              placeholder="agent_..."
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-blue-500 focus:outline-none font-mono"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-500 mb-1">Retell Phone Number</label>
-            <input
-              type="text"
-              value={retellPhoneNumber}
-              onChange={(e) => setRetellPhoneNumber(e.target.value)}
-              placeholder="+1..."
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-blue-500 focus:outline-none font-mono"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t border-zinc-800 pt-4">
-        <p className="text-xs text-zinc-500 mb-3">Calendar</p>
-        <div>
-          <label className="block text-xs text-zinc-500 mb-1">Cal.com Event Slug</label>
-          <input
-            type="text"
-            value={calComEventSlug}
-            onChange={(e) => setCalComEventSlug(e.target.value)}
-            placeholder="30-min-call"
-            className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-blue-500 focus:outline-none font-mono"
-          />
-        </div>
-      </div>
+      {!initial && (
+        <p className="text-xs text-zinc-500">
+          A Retell agent and phone number will be auto-provisioned when you create the client.
+        </p>
+      )}
 
       <div className="flex gap-2 pt-2">
         <button

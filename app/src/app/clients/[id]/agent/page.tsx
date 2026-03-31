@@ -61,6 +61,32 @@ export default function AgentConfigPage() {
     );
   }
 
+  const [provisioning, setProvisioning] = useState(false);
+  const needsProvision = !config?.retellAgentId || config?.retellAgentId === "placeholder-agent-id";
+
+  async function handleProvision() {
+    setProvisioning(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/clients/${id}/agent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setStatus({ type: "success", msg: `Agent provisioned! Phone: ${data.phoneNumber}` });
+        mutate();
+      } else {
+        setStatus({ type: "error", msg: data.error || "Provisioning failed" });
+      }
+    } catch {
+      setStatus({ type: "error", msg: "Provisioning failed" });
+    } finally {
+      setProvisioning(false);
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
     setStatus(null);
@@ -138,8 +164,28 @@ export default function AgentConfigPage() {
           </div>
         )}
 
+        {/* Provision banner */}
+        {needsProvision && (
+          <div className="rounded-lg border border-orange-800 bg-orange-900/10 p-5 space-y-3">
+            <div>
+              <h2 className="text-sm font-medium text-orange-400">No Retell Agent</h2>
+              <p className="text-xs text-zinc-500 mt-1">
+                This client needs a Retell agent and phone number provisioned before calls can be placed.
+                This will create an LLM, agent, and purchase a phone number through Retell.
+              </p>
+            </div>
+            <button
+              onClick={handleProvision}
+              disabled={provisioning}
+              className="rounded bg-orange-600 px-4 py-2 text-sm font-medium hover:bg-orange-500 disabled:opacity-50"
+            >
+              {provisioning ? "Provisioning..." : "Provision Retell Agent + Phone Number"}
+            </button>
+          </div>
+        )}
+
         {/* Retell IDs */}
-        {config?.retellAgentId && (
+        {config?.retellAgentId && !needsProvision && (
           <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-xs text-zinc-500 flex gap-6">
             <span>Agent: <span className="font-mono text-zinc-400">{config.retellAgentId}</span></span>
             <span>LLM: <span className="font-mono text-zinc-400">{config.retellLlmId}</span></span>

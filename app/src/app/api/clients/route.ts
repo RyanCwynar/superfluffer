@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { provisionRetellAgent } from "@/lib/retell";
 
 export async function GET() {
   const result = await db
@@ -13,22 +14,38 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { name, slug, industry, timezone, retellAgentId, retellPhoneNumber, calComEventSlug } =
-    body as {
-      name: string;
-      slug: string;
-      industry: string;
-      timezone: string;
-      retellAgentId: string;
-      retellPhoneNumber: string;
-      calComEventSlug?: string;
-    };
+  const { name, slug, industry, timezone, areaCode } = body as {
+    name: string;
+    slug: string;
+    industry: string;
+    timezone: string;
+    areaCode?: number;
+  };
 
   if (!name || !slug || !industry || !timezone) {
     return NextResponse.json(
       { error: "name, slug, industry, and timezone are required" },
       { status: 400 },
     );
+  }
+
+  // Auto-provision Retell agent + phone number
+  let retellAgentId: string | null = null;
+  let retellLlmId: string | null = null;
+  let retellPhoneNumber: string | null = null;
+  let provisionError: string | null = null;
+
+  try {
+    const result = await provisionRetellAgent({
+      name,
+      areaCode: areaCode || undefined,
+    });
+    retellAgentId = result.agentId;
+    retellLlmId = result.llmId;
+    retellPhoneNumber = result.phoneNumber;
+  } catch (err) {
+    console.error("Failed to provision Retell agent:", err);
+    provisionError = String(err);
   }
 
   const [client] = await db
@@ -38,14 +55,14 @@ export async function POST(request: Request) {
       slug,
       industry,
       timezone,
-      retellAgentId: retellAgentId || "",
-      retellPhoneNumber: retellPhoneNumber || "",
-      calComEventSlug: calComEventSlug || null,
+      retellAgentId,
+      retellLlmId,
+      retellPhoneNumber,
       active: true,
     })
     .returning();
 
-  return NextResponse.json(client);
+  return NextResponse.json({ ...client, provisionError });
 }
 
 export async function PUT(request: Request) {
@@ -56,9 +73,6 @@ export async function PUT(request: Request) {
     slug?: string;
     industry?: string;
     timezone?: string;
-    retellAgentId?: string;
-    retellPhoneNumber?: string;
-    calComEventSlug?: string;
     active?: boolean;
   };
 
@@ -71,9 +85,6 @@ export async function PUT(request: Request) {
   if (fields.slug !== undefined) updates.slug = fields.slug;
   if (fields.industry !== undefined) updates.industry = fields.industry;
   if (fields.timezone !== undefined) updates.timezone = fields.timezone;
-  if (fields.retellAgentId !== undefined) updates.retellAgentId = fields.retellAgentId;
-  if (fields.retellPhoneNumber !== undefined) updates.retellPhoneNumber = fields.retellPhoneNumber;
-  if (fields.calComEventSlug !== undefined) updates.calComEventSlug = fields.calComEventSlug;
   if (fields.active !== undefined) updates.active = fields.active;
 
   const [client] = await db

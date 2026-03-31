@@ -16,7 +16,6 @@ const SETTINGS = [
   { key: "RETELL_API_KEY", label: "Retell API Key", category: "retell", sensitive: true },
   { key: "RETELL_WEBHOOK_SECRET", label: "Retell Webhook Secret", category: "retell", sensitive: true },
   { key: "CRON_SECRET", label: "Cron Secret", category: "system", sensitive: true },
-  { key: "CAL_COM_API_KEY", label: "Cal.com API Key", category: "calendar", sensitive: true },
 ];
 
 async function main() {

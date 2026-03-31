@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { createRetellAgent, syncRetellAgent } from "@/lib/retell";
+import { provisionRetellAgent, syncRetellAgent } from "@/lib/retell";
 
 export async function GET(
   _request: Request,
@@ -34,6 +34,62 @@ export async function GET(
   });
 }
 
+/**
+ * POST: Provision a new Retell agent + phone number for this client.
+ * Used when the client has no agent or has a placeholder.
+ */
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const body = await request.json().catch(() => ({}));
+
+  const [client] = await db
+    .select()
+    .from(clients)
+    .where(eq(clients.id, parseInt(id)));
+
+  if (!client) {
+    return NextResponse.json({ error: "Client not found" }, { status: 404 });
+  }
+
+  try {
+    const result = await provisionRetellAgent({
+      name: client.name,
+      prompt: client.agentPrompt ?? undefined,
+      welcomeMessage: client.agentWelcomeMessage ?? undefined,
+      voiceId: client.agentVoiceId ?? undefined,
+      areaCode: body.areaCode || undefined,
+    });
+
+    await db
+      .update(clients)
+      .set({
+        retellAgentId: result.agentId,
+        retellLlmId: result.llmId,
+        retellPhoneNumber: result.phoneNumber,
+      })
+      .where(eq(clients.id, parseInt(id)));
+
+    return NextResponse.json({
+      ok: true,
+      agentId: result.agentId,
+      llmId: result.llmId,
+      phoneNumber: result.phoneNumber,
+    });
+  } catch (err) {
+    console.error("Failed to provision Retell agent:", err);
+    return NextResponse.json(
+      { error: `Provisioning failed: ${err}` },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PUT: Update agent config fields + sync to Retell.
+ */
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -56,7 +112,6 @@ export async function PUT(
     "agentPrompt", "agentVoiceId", "agentWelcomeMessage",
     "calComApiKey", "calComEventSlug", "calComEventTypeId",
     "callWindowStart", "callWindowEnd", "callDays",
-    "retellPhoneNumber",
   ] as const;
 
   for (const f of fields) {
@@ -68,34 +123,18 @@ export async function PUT(
     await db.update(clients).set(updates).where(eq(clients.id, parseInt(id)));
   }
 
-  // Sync to Retell if we have prompt changes
+  // Sync to Retell if agent exists
   const prompt = body.agentPrompt ?? client.agentPrompt;
-  if (prompt) {
+  if (prompt && client.retellAgentId && client.retellLlmId) {
     try {
-      if (client.retellAgentId && client.retellLlmId) {
-        // Update existing agent
-        await syncRetellAgent({
-          agentId: client.retellAgentId,
-          llmId: client.retellLlmId,
-          name: client.name,
-          prompt,
-          welcomeMessage: body.agentWelcomeMessage ?? client.agentWelcomeMessage ?? undefined,
-          voiceId: body.agentVoiceId ?? client.agentVoiceId ?? undefined,
-        });
-      } else {
-        // Create new agent
-        const { agentId, llmId } = await createRetellAgent({
-          name: client.name,
-          prompt,
-          welcomeMessage: body.agentWelcomeMessage ?? client.agentWelcomeMessage ?? undefined,
-          voiceId: body.agentVoiceId ?? client.agentVoiceId ?? undefined,
-        });
-
-        await db
-          .update(clients)
-          .set({ retellAgentId: agentId, retellLlmId: llmId })
-          .where(eq(clients.id, parseInt(id)));
-      }
+      await syncRetellAgent({
+        agentId: client.retellAgentId,
+        llmId: client.retellLlmId,
+        name: client.name,
+        prompt,
+        welcomeMessage: body.agentWelcomeMessage ?? client.agentWelcomeMessage ?? undefined,
+        voiceId: body.agentVoiceId ?? client.agentVoiceId ?? undefined,
+      });
     } catch (err) {
       console.error("Failed to sync to Retell:", err);
       return NextResponse.json(
@@ -105,5 +144,5 @@ export async function PUT(
     }
   }
 
-  return NextResponse.json({ ok: true, retellSync: true });
+  return NextResponse.json({ ok: true, retellSync: !!client.retellAgentId });
 }
