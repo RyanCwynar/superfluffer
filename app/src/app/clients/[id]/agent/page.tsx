@@ -211,7 +211,7 @@ export default function AgentConfigPage() {
             {saving ? "Saving..." : "Save & Sync"}
           </button>
           <Link
-            href="/clients"
+            href="/"
             className="rounded px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600"
           >
             Back to Clients

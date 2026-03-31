@@ -109,18 +109,13 @@ export default function ClientDashboard() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-zinc-500 hover:text-zinc-300 text-sm">
-            ← Home
-          </Link>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">
-              {client?.name ?? "Loading..."}
-            </h1>
-            <p className="text-sm text-zinc-500">
-              {client?.industry} · {client?.timezone}
-            </p>
-          </div>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">
+            {client?.name ?? "Loading..."}
+          </h1>
+          <p className="text-sm text-zinc-500">
+            {client?.industry} · {client?.timezone}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Link
@@ -130,7 +125,7 @@ export default function ClientDashboard() {
             Agent Config
           </Link>
           <Link
-            href="/clients"
+            href="/"
             className="rounded px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600"
           >
             All Clients
@@ -153,7 +148,13 @@ export default function ClientDashboard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-8 space-y-6">
+      <div className="mx-auto max-w-7xl px-6 pt-3">
+        <Link href="/" className="text-xs text-zinc-600 hover:text-zinc-400">
+          ← All Clients
+        </Link>
+      </div>
+
+      <main className="mx-auto max-w-7xl px-6 py-4 space-y-6">
         {!client?.retellAgentId && (
           <div className="rounded-lg border border-orange-800 bg-orange-900/10 p-4 flex items-center justify-between">
             <p className="text-sm text-orange-400">
