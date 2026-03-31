@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { leads, clients } from "@/lib/db/schema";
+import { leads, clients, calls } from "@/lib/db/schema";
 import { eq, lte, and } from "drizzle-orm";
 import { getRetellClient } from "@/lib/retell";
 
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     .select()
     .from(leads)
     .where(
-      and(eq(leads.status, "no_answer"), lte(leads.nextRetryAt, new Date())),
+      and(eq(leads.status, "active"), lte(leads.nextRetryAt, new Date())),
     );
 
   if (retryLeads.length === 0) {
@@ -46,13 +46,24 @@ export async function GET(request: Request) {
         },
       });
 
+      const newAttempt = lead.callAttempts + 1;
+
+      // Create call record
+      await db.insert(calls).values({
+        leadId: lead.id,
+        clientId: lead.clientId,
+        retellCallId: call.call_id,
+        status: "initiated",
+        attemptNumber: newAttempt,
+        calledAt: new Date(),
+      });
+
+      // Update lead
       await db
         .update(leads)
         .set({
-          status: "calling",
-          callAttempts: lead.callAttempts + 1,
-          lastCallAt: new Date(),
-          retellCallId: call.call_id,
+          status: "active",
+          callAttempts: newAttempt,
           nextRetryAt: null,
         })
         .where(eq(leads.id, lead.id));

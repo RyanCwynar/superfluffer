@@ -28,14 +28,25 @@ export interface Lead {
   source: string | null;
   status: string;
   callAttempts: number;
-  lastCallAt: string | null;
   nextRetryAt: string | null;
-  retellCallId: string | null;
   appointmentTime: string | null;
   calendarEventId: string | null;
-  notes: string | null;
-  transcript: string | null;
-  batchId: number;
+  batchId: number | null;
   clientId: number;
+  createdAt: string | null;
+}
+
+export interface Call {
+  id: number;
+  leadId: number;
+  clientId: number;
+  retellCallId: string | null;
+  status: string;
+  transcript: string | null;
+  summary: string | null;
+  duration: number | null;
+  disconnectionReason: string | null;
+  attemptNumber: number;
+  calledAt: string | null;
   createdAt: string | null;
 }

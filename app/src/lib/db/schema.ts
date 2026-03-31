@@ -45,20 +45,34 @@ export const leads = pgTable("leads", {
   phone: text("phone").notNull(),
   email: text("email"),
   source: text("source"),
-  status: text("status").notNull().default("pending"),
+  status: text("status").notNull().default("new"),
   callAttempts: integer("call_attempts").notNull().default(0),
-  lastCallAt: timestamp("last_call_at"),
   nextRetryAt: timestamp("next_retry_at"),
-  retellCallId: text("retell_call_id"),
   appointmentTime: text("appointment_time"),
   calendarEventId: text("calendar_event_id"),
-  notes: text("notes"),
-  transcript: text("transcript"),
   batchId: integer("batch_id")
-    .notNull()
     .references(() => batches.id),
   clientId: integer("client_id")
     .notNull()
     .references(() => clients.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const calls = pgTable("calls", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id")
+    .notNull()
+    .references(() => leads.id),
+  clientId: integer("client_id")
+    .notNull()
+    .references(() => clients.id),
+  retellCallId: text("retell_call_id"),
+  status: text("status").notNull().default("initiated"),
+  transcript: text("transcript"),
+  summary: text("summary"),
+  duration: integer("duration"),
+  disconnectionReason: text("disconnection_reason"),
+  attemptNumber: integer("attempt_number").notNull(),
+  calledAt: timestamp("called_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });

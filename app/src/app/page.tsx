@@ -4,9 +4,10 @@ import useSWR from "swr";
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import CsvUpload from "./components/CsvUpload";
-import LeadTable from "./components/LeadTable";
+import LeadBoard from "./components/LeadTable";
 import BatchList from "./components/BatchList";
 import ClientSelector from "./components/ClientSelector";
+import ManualLeadForm from "./components/ManualLeadForm";
 import type { Client, Batch, Lead } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -16,34 +17,20 @@ function FunnelMetrics({ leads }: { leads: Lead[] }) {
 
   const total = leads.length;
   const counts: Record<string, number> = {};
-  let totalAttempts = 0;
-  let connected = 0;
 
   for (const lead of leads) {
     counts[lead.status] = (counts[lead.status] || 0) + 1;
-    totalAttempts += lead.callAttempts;
-    if (
-      lead.status === "qualified" ||
-      lead.status === "booked" ||
-      lead.status === "not_interested"
-    ) {
-      connected++;
-    }
   }
 
-  const booked = counts["booked"] || 0;
-  const bookingRate = total > 0 ? ((booked / total) * 100).toFixed(1) : "0";
-  const reachRate =
-    totalAttempts > 0 ? ((connected / total) * 100).toFixed(1) : "0";
+  const scheduled = counts["scheduled"] || 0;
+  const bookingRate = total > 0 ? ((scheduled / total) * 100).toFixed(1) : "0";
 
   const metrics = [
     { label: "Total", value: total, color: "text-zinc-200" },
-    { label: "Calling", value: counts["calling"] || 0, color: "text-yellow-400" },
-    { label: "No Answer", value: counts["no_answer"] || 0, color: "text-orange-400" },
-    { label: "Qualified", value: counts["qualified"] || 0, color: "text-blue-400" },
-    { label: "Booked", value: counts["booked"] || 0, color: "text-green-400" },
-    { label: "Not Interested", value: counts["not_interested"] || 0, color: "text-zinc-500" },
-    { label: "Unreachable", value: counts["unreachable"] || 0, color: "text-red-400" },
+    { label: "New", value: counts["new"] || 0, color: "text-zinc-400" },
+    { label: "Active", value: counts["active"] || 0, color: "text-yellow-400" },
+    { label: "Scheduled", value: scheduled, color: "text-green-400" },
+    { label: "Failed", value: counts["failed"] || 0, color: "text-red-400" },
   ];
 
   return (
@@ -57,15 +44,9 @@ function FunnelMetrics({ leads }: { leads: Lead[] }) {
             </div>
           ))}
         </div>
-        <div className="flex gap-6">
-          <div className="text-center">
-            <p className="text-lg font-semibold text-green-400">{bookingRate}%</p>
-            <p className="text-xs text-zinc-500">Booking Rate</p>
-          </div>
-          <div className="text-center">
-            <p className="text-lg font-semibold text-blue-400">{reachRate}%</p>
-            <p className="text-xs text-zinc-500">Reach Rate</p>
-          </div>
+        <div className="text-center">
+          <p className="text-lg font-semibold text-green-400">{bookingRate}%</p>
+          <p className="text-xs text-zinc-500">Booking Rate</p>
         </div>
       </div>
     </div>
@@ -87,7 +68,7 @@ export default function Home() {
   const leadsUrl = selectedClientId
     ? `/api/leads?clientId=${selectedClientId}${selectedBatchId ? `&batchId=${selectedBatchId}` : ""}`
     : null;
-  const { data: leads } = useSWR<Lead[]>(leadsUrl, fetcher, {
+  const { data: leads, mutate: mutateLeads } = useSWR<Lead[]>(leadsUrl, fetcher, {
     refreshInterval: 5000,
   });
 
@@ -109,8 +90,22 @@ export default function Home() {
       const batch = await res.json();
       setSelectedBatchId(batch.id);
       mutateBatches();
+      mutateLeads();
     },
-    [selectedClientId, mutateBatches],
+    [selectedClientId, mutateBatches, mutateLeads],
+  );
+
+  const handleManualAdd = useCallback(
+    async (lead: { name: string; phone: string; email?: string }) => {
+      if (!selectedClientId) return;
+      await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: selectedClientId, ...lead }),
+      });
+      mutateLeads();
+    },
+    [selectedClientId, mutateLeads],
   );
 
   return (
@@ -143,7 +138,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
+      <main className="mx-auto max-w-7xl px-6 py-8 space-y-6">
         {!selectedClientId ? (
           <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-12 text-center">
             <p className="text-zinc-500">Select a client to get started</p>
@@ -151,17 +146,25 @@ export default function Home() {
         ) : (
           <>
             <FunnelMetrics leads={leads ?? []} />
-            <CsvUpload onUpload={handleUpload} />
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-              <div className="lg:col-span-1">
+
+            <div className="space-y-3">
+              <CsvUpload onUpload={handleUpload} />
+              <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-xs text-zinc-500 mb-3">Or add a single lead</p>
+                <ManualLeadForm onAdd={handleManualAdd} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[200px_1fr]">
+              <div>
                 <BatchList
                   batches={batches ?? []}
                   selectedBatchId={selectedBatchId}
                   onSelect={setSelectedBatchId}
                 />
               </div>
-              <div className="lg:col-span-3">
-                <LeadTable leads={leads ?? []} />
+              <div>
+                <LeadBoard leads={leads ?? []} />
               </div>
             </div>
           </>

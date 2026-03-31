@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { db } from "@/lib/db";
-import { batches, leads, clients } from "@/lib/db/schema";
+import { batches, leads, clients, calls } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getRetellClient } from "@/lib/retell";
 
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         name: l.name,
         phone: l.phone,
         email: l.email || null,
-        status: "pending",
+        status: "new",
         callAttempts: 0,
         batchId: batch.id,
         clientId,
@@ -87,13 +87,22 @@ export async function POST(request: Request) {
           },
         });
 
+        // Create call record
+        await db.insert(calls).values({
+          leadId: lead.id,
+          clientId,
+          retellCallId: call.call_id,
+          status: "initiated",
+          attemptNumber: 1,
+          calledAt: new Date(),
+        });
+
+        // Update lead
         await db
           .update(leads)
           .set({
-            status: "calling",
+            status: "active",
             callAttempts: 1,
-            lastCallAt: new Date(),
-            retellCallId: call.call_id,
           })
           .where(eq(leads.id, lead.id));
       } catch (error) {
