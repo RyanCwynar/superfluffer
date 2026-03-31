@@ -69,22 +69,29 @@ export default function AgentConfigPage() {
 
   async function handleProvision() {
     setProvisioning(true);
-    setStatus(null);
+    setStatus({ type: "success", msg: "Creating agent in Retell... this may take a moment." });
     try {
       const res = await fetch(`/api/clients/${id}/agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "provision" }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setStatus({ type: "error", msg: `Unexpected response: ${text.slice(0, 200)}` });
+        return;
+      }
       if (data.ok) {
-        setStatus({ type: "success", msg: "Agent created! Now assign a phone number below." });
+        setStatus({ type: "success", msg: `Agent created (${data.agentId})! Now assign a phone number below.` });
         mutate();
       } else {
-        setStatus({ type: "error", msg: data.error || "Provisioning failed" });
+        setStatus({ type: "error", msg: data.error || `Provisioning failed: ${JSON.stringify(data)}` });
       }
-    } catch {
-      setStatus({ type: "error", msg: "Provisioning failed" });
+    } catch (err) {
+      setStatus({ type: "error", msg: `Provisioning failed: ${err}` });
     } finally {
       setProvisioning(false);
     }
@@ -207,9 +214,13 @@ export default function AgentConfigPage() {
             <button
               onClick={handleProvision}
               disabled={provisioning}
-              className="rounded bg-orange-600 px-4 py-2 text-sm font-medium hover:bg-orange-500 disabled:opacity-50"
+              className={`rounded px-4 py-2 text-sm font-medium ${
+                provisioning
+                  ? "bg-zinc-700 text-zinc-400 animate-pulse"
+                  : "bg-orange-600 hover:bg-orange-500"
+              }`}
             >
-              {provisioning ? "Creating Agent..." : "Create Retell Agent"}
+              {provisioning ? "⏳ Creating Agent in Retell..." : "Create Retell Agent"}
             </button>
           </div>
         )}
