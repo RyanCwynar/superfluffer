@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clients } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { provisionRetellAgent } from "@/lib/retell";
+import { provisionRetellAgent, listRetellPhoneNumbers, assignPhoneToAgent } from "@/lib/retell";
 
 export async function GET() {
   const result = await db
@@ -28,15 +28,27 @@ export async function POST(request: Request) {
     );
   }
 
-  // Auto-provision Retell agent (no phone number — assign separately)
+  // Auto-provision Retell agent + assign first available phone
   let retellAgentId: string | null = null;
   let retellLlmId: string | null = null;
+  let retellPhoneNumber: string | null = null;
   let provisionError: string | null = null;
 
   try {
     const result = await provisionRetellAgent({ name });
     retellAgentId = result.agentId;
     retellLlmId = result.llmId;
+
+    // Auto-assign first available phone number
+    try {
+      const phones = await listRetellPhoneNumbers();
+      if (phones.length > 0) {
+        await assignPhoneToAgent(phones[0].phone_number, result.agentId);
+        retellPhoneNumber = phones[0].phone_number;
+      }
+    } catch (phoneErr) {
+      console.error("Auto-assign phone failed:", phoneErr);
+    }
   } catch (err) {
     console.error("Failed to provision Retell agent:", err);
     provisionError = String(err);
@@ -51,6 +63,7 @@ export async function POST(request: Request) {
       timezone,
       retellAgentId,
       retellLlmId,
+      retellPhoneNumber,
       active: true,
     })
     .returning();

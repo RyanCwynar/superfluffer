@@ -88,10 +88,28 @@ export async function POST(
         })
         .where(eq(clients.id, parseInt(id)));
 
+      // Auto-assign the first available phone number
+      let assignedPhone: string | null = null;
+      try {
+        const phones = await listRetellPhoneNumbers();
+        if (phones.length > 0) {
+          const phone = phones[0];
+          await assignPhoneToAgent(phone.phone_number, result.agentId);
+          assignedPhone = phone.phone_number;
+          await db
+            .update(clients)
+            .set({ retellPhoneNumber: assignedPhone })
+            .where(eq(clients.id, parseInt(id)));
+        }
+      } catch (phoneErr) {
+        console.error("Auto-assign phone failed:", phoneErr);
+      }
+
       return NextResponse.json({
         ok: true,
         agentId: result.agentId,
         llmId: result.llmId,
+        phoneNumber: assignedPhone,
       });
     } catch (err) {
       console.error("Failed to provision Retell agent:", err);

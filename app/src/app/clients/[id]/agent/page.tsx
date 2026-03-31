@@ -85,7 +85,10 @@ export default function AgentConfigPage() {
         return;
       }
       if (data.ok) {
-        setStatus({ type: "success", msg: `Agent created (${data.agentId})! Now assign a phone number below.` });
+        const phoneMsg = data.phoneNumber
+          ? ` Phone ${data.phoneNumber} auto-assigned.`
+          : " No phone numbers found — assign one below.";
+        setStatus({ type: "success", msg: `Agent created (${data.agentId})!${phoneMsg}` });
         mutate();
       } else {
         setStatus({ type: "error", msg: data.error || `Provisioning failed: ${JSON.stringify(data)}` });
