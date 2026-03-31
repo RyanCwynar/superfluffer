@@ -52,11 +52,14 @@ export async function POST(request: Request) {
           .from(leads)
           .where(eq(leads.id, id));
 
-        if (lead && lead.callAttempts < 3) {
-          const delayMs =
-            lead.callAttempts === 1
-              ? 2 * 60 * 60 * 1000 // 2 hours
-              : 24 * 60 * 60 * 1000; // 24 hours
+        if (lead && lead.callAttempts < 5) {
+          const retryDelays: Record<number, number> = {
+            1: 2 * 60 * 60 * 1000,   // +2 hours
+            2: 6 * 60 * 60 * 1000,   // +6 hours
+            3: 24 * 60 * 60 * 1000,  // +24 hours
+            4: 48 * 60 * 60 * 1000,  // +48 hours
+          };
+          const delayMs = retryDelays[lead.callAttempts] ?? 72 * 60 * 60 * 1000;
           await db
             .update(leads)
             .set({
@@ -85,8 +88,15 @@ export async function POST(request: Request) {
           .where(eq(leads.id, id));
 
         if (lead && lead.status !== "booked") {
-          const status =
-            sentiment === "Negative" ? "not_interested" : "qualified";
+          const isBooked =
+            summary?.toLowerCase().includes("appointment booked") ||
+            summary?.toLowerCase().includes("scheduled") ||
+            call.call_analysis?.custom_analysis_data?.booking_status === "booked";
+          const status = isBooked
+            ? "booked"
+            : sentiment === "Negative"
+              ? "not_interested"
+              : "qualified";
           await db
             .update(leads)
             .set({ status, notes: summary })

@@ -9,8 +9,23 @@ http:
       tls:
         certResolver: mytlschallenge
 
+    superfluffer-deploy:
+      rule: "Host(`superfluffer.byldr.co`) && Path(`/deploy`)"
+      service: deploy-hook
+      entryPoints:
+        - web
+        - websecure
+      tls:
+        certResolver: mytlschallenge
+      priority: 100
+
   services:
     superfluffer:
       loadBalancer:
         servers:
           - url: "http://127.0.0.1:3000"
+
+    deploy-hook:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:9000"

@@ -1,6 +1,57 @@
 #!/bin/bash
 set -e
-cd app
+
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP_DIR="$REPO_DIR/app"
+HEALTH_URL="${HEALTH_URL:-http://localhost:3000/api/clients}"
+MAX_RETRIES=10
+RETRY_DELAY=3
+
+cd "$REPO_DIR"
+
+echo "==> Pulling latest from origin/main..."
+PREV_COMMIT=$(git rev-parse HEAD)
+git pull origin main
+
+echo "==> Installing dependencies..."
+cd "$APP_DIR"
+npm ci --omit=dev
+
+echo "==> Running database migrations..."
+npx drizzle-kit push --force
+
+echo "==> Building..."
+npm run build
+
+echo "==> Restarting pm2..."
+cd "$REPO_DIR"
+pm2 restart ecosystem.config.js --update-env || pm2 start ecosystem.config.js
+
+echo "==> Health check..."
+HEALTHY=false
+for i in $(seq 1 $MAX_RETRIES); do
+  sleep $RETRY_DELAY
+  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" 2>/dev/null || echo "000")
+  if [ "$HTTP_STATUS" = "200" ]; then
+    HEALTHY=true
+    echo "    Health check passed (attempt $i)"
+    break
+  fi
+  echo "    Attempt $i/$MAX_RETRIES: status=$HTTP_STATUS"
+done
+
+if [ "$HEALTHY" = "true" ]; then
+  echo "==> Deploy successful! $(git rev-parse --short HEAD)"
+  exit 0
+fi
+
+echo "==> UNHEALTHY — rolling back to $PREV_COMMIT"
+cd "$REPO_DIR"
+git checkout "$PREV_COMMIT"
+cd "$APP_DIR"
 npm ci --omit=dev
 npm run build
-pm2 restart ecosystem.config.js --update-env || pm2 start ecosystem.config.js
+cd "$REPO_DIR"
+pm2 restart ecosystem.config.js --update-env
+echo "==> Rolled back to $(git rev-parse --short HEAD)"
+exit 1
