@@ -5,6 +5,7 @@ const PUBLIC_PATHS = [
   "/api/health",
   "/api/retell/webhook",
   "/api/cron/",
+  "/api/auth/",
   "/login",
 ];
 
